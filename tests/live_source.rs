@@ -14,7 +14,8 @@ async fn live_wikipedia_article_parses_and_validates() {
         fetch_enabled: true,
         curated: PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("live/curated.toml"),
         db: MEMORY.to_string(),
-        stale_after: Duration::from_secs(864_000),
+        stale_after: Duration::from_secs(691_200),
+        check_stale_after: Duration::from_secs(86_400),
         poll: Duration::from_secs(21_600),
         base_url: "https://racetotur.in".to_string(),
     };

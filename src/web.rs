@@ -25,6 +25,7 @@ pub struct AppState {
     pub curated: Curated,
     pub selection: Selection,
     pub stale_after: Duration,
+    pub check_stale_after: Duration,
     /// Public origin, used for canonical and shared-link metadata.
     pub base_url: String,
 }
@@ -38,6 +39,7 @@ pub fn router(state: SharedState) -> Router {
         .route("/", get(index))
         .route("/methodology", get(methodology))
         .route("/health/ready", get(health_ready))
+        .route("/health/fresh", get(health_fresh))
         .route("/robots.txt", get(robots))
         .route("/static/app.css", get(app_css))
         // Compression matters more than it looks: the page is mostly repeated
@@ -59,6 +61,11 @@ const CACHE_STATIC: &str = "public, max-age=3600";
 struct FreshView {
     accuracy_label: String,
     is_stale: bool,
+    /// True when our own collection has not succeeded recently — a different
+    /// problem from the source itself being old, and the one that means
+    /// something is broken on our side.
+    collection_stale: bool,
+    checked_age: String,
     source_dt: String,
     source_human: String,
     generated_dt: String,
@@ -177,7 +184,11 @@ fn fmt_rfc3339(t: OffsetDateTime) -> String {
 fn build_fresh(state: &AppState, now: OffsetDateTime) -> FreshView {
     let age_secs = (now - state.snapshot.source_as_of).whole_seconds();
     let is_stale = age_secs > state.stale_after.as_secs() as i64;
+    let checked_secs = (now - state.snapshot.generated_at).whole_seconds();
+    let collection_stale = checked_secs > state.check_stale_after.as_secs() as i64;
     FreshView {
+        collection_stale,
+        checked_age: humanize_age(checked_secs),
         // The source publishes weekly with a stated date, so the page never
         // claims to be live.
         accuracy_label: if is_stale {
@@ -452,6 +463,25 @@ async fn methodology(State(shared): State<SharedState>) -> Response {
 // always ready to serve.
 async fn health_ready() -> &'static str {
     "ready\n"
+}
+
+/// Monitoring hook: 503 when our collection has stopped succeeding, so an
+/// external cron can alarm on a plain HTTP status. Distinct from readiness —
+/// serving an aged snapshot is intended behaviour, not an outage.
+async fn health_fresh(State(shared): State<SharedState>) -> Response {
+    let state = shared.load();
+    let now = OffsetDateTime::now_utc();
+    let checked = (now - state.snapshot.generated_at).whole_seconds();
+    let source = (now - state.snapshot.source_as_of).whole_seconds();
+    let body = format!(
+        "checked_age_seconds={checked}\nsource_age_seconds={source}\nsnapshot_version={}\n",
+        state.version
+    );
+    if checked > state.check_stale_after.as_secs() as i64 {
+        (StatusCode::SERVICE_UNAVAILABLE, format!("collection stale\n{body}")).into_response()
+    } else {
+        (StatusCode::OK, format!("fresh\n{body}")).into_response()
+    }
 }
 
 async fn robots() -> impl IntoResponse {

@@ -153,6 +153,32 @@ becomes something people rely on.
 
 ## Monitoring
 
-There is no alerting yet. The cheapest useful thing is an external cron hitting
-`/` and asserting the source date is recent, or `fly logs` piped somewhere. Worth
-adding before the standings start deciding who flies to Turin.
+`GET /health/fresh` is the alarm hook. It returns **503** when our own collection
+has stopped succeeding (default: no successful fetch for 24h, while we poll every
+6h), and **200** otherwise. Body carries the raw numbers:
+
+```
+fresh
+checked_age_seconds=3577
+source_age_seconds=302862
+snapshot_version=1
+```
+
+Any uptime checker pointed at it will alarm on the status code alone — no
+log parsing:
+
+```sh
+curl -fsS https://racetotur.in/health/fresh || notify-me
+```
+
+**Two clocks, deliberately separate.** `source_age` is how old Wikipedia says its
+standings are; since it publishes weekly, several days old is *normal* and only
+`RTT_STALE_AFTER_SECS` (8 days) worth of age means the source itself has stalled.
+`checked_age` is how long since *we* last fetched successfully, governed by
+`RTT_CHECK_STALE_AFTER_SECS` (1 day) — that is the one that means something is
+broken on our side. Do not set the source threshold to a day; the page would
+declare itself stale every day while being perfectly current.
+
+The homepage shows each condition separately: "Stale: showing the last verified
+snapshot" for an old source, and "Last successful update N ago — automatic
+collection may be failing" for a broken fetcher.

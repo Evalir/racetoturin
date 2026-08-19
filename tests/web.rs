@@ -23,7 +23,8 @@ async fn app(curated: &str) -> Router {
         fetch_enabled: false,
         curated: root(curated),
         db: racetoturin::storage::MEMORY.to_string(),
-        stale_after: Duration::from_secs(864_000),
+        stale_after: Duration::from_secs(691_200),
+        check_stale_after: Duration::from_secs(86_400),
         poll: Duration::from_secs(21_600),
         base_url: "https://racetotur.in".to_string(),
     };
@@ -95,6 +96,35 @@ async fn methodology_and_health_endpoints_work() {
     let (status, body) = get_body(app("live/curated.toml").await, "/health/ready").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body, "ready\n");
+}
+
+/// The monitoring hook: 200 when collection is current, 503 when it has
+/// stopped succeeding, so a cron can alarm on the status code alone.
+#[tokio::test]
+async fn health_fresh_reports_collection_age() {
+    let (status, body) = get_body(app("live/curated.toml").await, "/health/fresh").await;
+    // Just ingested, so collection is current even though the source date is
+    // several days old — the two clocks are deliberately separate.
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.starts_with("fresh"), "unexpected: {body}");
+    assert!(body.contains("checked_age_seconds="));
+    assert!(body.contains("source_age_seconds="));
+    assert!(body.contains("snapshot_version=1"));
+}
+
+/// A source that is old but freshly checked must not read as stale: Wikipedia
+/// publishes weekly, so its stated date is routinely days old.
+#[tokio::test]
+async fn a_weekly_source_is_not_labelled_stale() {
+    let (_, body) = get_body(app("live/curated.toml").await, "/").await;
+    assert!(
+        !body.contains("Stale: showing the last verified snapshot"),
+        "3-day-old weekly data must not be flagged stale"
+    );
+    assert!(
+        !body.contains("collection may be failing"),
+        "a snapshot we just ingested must not warn about collection"
+    );
 }
 
 /// Cache headers are the cost control: they let a CDN absorb a traffic spike

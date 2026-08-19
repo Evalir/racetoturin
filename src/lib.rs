@@ -20,7 +20,12 @@ pub struct Config {
     pub fetch_enabled: bool,
     pub curated: PathBuf,
     pub db: String,
+    /// How old the source's own stated date may get before the table is
+    /// labelled stale. Must accommodate a weekly source.
     pub stale_after: Duration,
+    /// How long since our last *successful* collection before we warn that
+    /// collection itself is failing. Should be a small multiple of `poll`.
+    pub check_stale_after: Duration,
     pub poll: Duration,
     /// Public origin, for canonical and shared-link metadata.
     pub base_url: String,
@@ -107,6 +112,7 @@ pub async fn ingest(config: &Config, store: &storage::Store) -> Result<web::AppS
         curated,
         selection,
         stale_after: config.stale_after,
+        check_stale_after: config.check_stale_after,
         base_url: config.base_url.trim_end_matches('/').to_string(),
     })
 }

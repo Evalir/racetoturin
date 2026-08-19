@@ -12,6 +12,9 @@
     · source age {{ fresh.age }}
     {% if fresh.is_stale %}<strong class="stale-note">Stale: showing the last verified snapshot.</strong>{% endif %}
   </p>
+  {% if fresh.collection_stale %}
+  <p><strong class="stale-note">Last successful update {{ fresh.checked_age }} ago — automatic collection may be failing.</strong></p>
+  {% endif %}
   <p class="provenance">Source: {{ fresh.source }} · parser {{ fresh.parser_version }} · ruleset {{ fresh.ruleset }} · snapshot v{{ fresh.version }}</p>
 </section>
 

@@ -48,13 +48,14 @@ taken from any source.
 | `RTT_FETCH` | `1` | `0` = kill switch: zero outbound requests, serve stored |
 | `RTT_FIXTURE` | *unset* | Parse a local file instead of fetching |
 | `RTT_POLL_SECS` | `21600` | Refresh cadence (6h; the source is weekly) |
-| `RTT_STALE_AFTER_SECS` | `864000` | ~10 days |
+| `RTT_STALE_AFTER_SECS` | `691200` | Source-date age before the table reads stale (8 days; the source is weekly) |
+| `RTT_CHECK_STALE_AFTER_SECS` | `86400` | Time since our last successful fetch before warning collection is broken |
 | `RTT_CURATED` | `live/curated.toml` | Grand Slam champions + withdrawals |
 | `RTT_DB` | `data/racetoturin.db` | SQLite file (`/data/…` in Docker) |
 | `RTT_BIND` | `127.0.0.1:8080` | Listen address (`0.0.0.0:8080` in Docker) |
 | `RTT_BASE_URL` | `https://racetotur.in` | Origin for canonical and `og:` URLs |
 
-Routes: `/`, `/methodology`, `/robots.txt`, `/health/ready`, `/static/app.css`.
+Routes: `/`, `/methodology`, `/robots.txt`, `/health/ready`, `/health/fresh`, `/static/app.css`.
 
 Responses are gzipped (13.8 KB → 2.4 KB) and carry
 `Cache-Control: max-age=120, stale-while-revalidate=600` plus an

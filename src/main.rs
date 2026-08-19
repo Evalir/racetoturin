@@ -24,8 +24,11 @@ async fn main() -> Result<()> {
         fetch_enabled: env_or("RTT_FETCH", "1") != "0",
         curated: PathBuf::from(env_or("RTT_CURATED", "live/curated.toml")),
         db: env_or("RTT_DB", "data/racetoturin.db"),
-        stale_after: secs("RTT_STALE_AFTER_SECS", "864000")?, // ~10 days
-        poll: secs("RTT_POLL_SECS", "21600")?,                // 6 h
+        // A week plus slack: the source itself only publishes weekly.
+        stale_after: secs("RTT_STALE_AFTER_SECS", "691200")?, // 8 days
+        // We poll every 6h, so a day without a successful check means broken.
+        check_stale_after: secs("RTT_CHECK_STALE_AFTER_SECS", "86400")?, // 1 day
+        poll: secs("RTT_POLL_SECS", "21600")?,                           // 6 h
         base_url: env_or("RTT_BASE_URL", "https://racetotur.in"),
     });
     let bind = env_or("RTT_BIND", "127.0.0.1:8080");
