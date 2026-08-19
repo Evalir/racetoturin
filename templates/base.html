@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Who would qualify for the ATP Finals in Turin if selection happened now — independent, unofficial, local build.">
+  <title>{% block title %}Race to Turin — local build{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site">
+    <p class="brand"><a href="/">racetotur.in</a> <span class="tag">local build</span></p>
+    <p class="unofficial">Independent and unofficial. Not affiliated with the ATP. This local build renders a synthetic fixture — every name, point total, and result below is fictional sample data.</p>
+  </header>
+  <main id="main">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site">
+    <p><a href="/methodology">Methodology &amp; data sources</a> · served entirely from local files, zero network requests</p>
+  </footer>
+</body>
+</html>

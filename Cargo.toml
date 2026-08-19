@@ -1,0 +1,21 @@
+[package]
+name = "racetoturin"
+version = "0.1.0"
+edition = "2021"
+description = "Local MVP of racetotur.in — ATP Race to Turin qualification table, served from a local HTML fixture with zero network egress"
+license = "MIT"
+
+[dependencies]
+anyhow = "1"
+askama = "0.14"
+axum = "0.8"
+scraper = "0.23"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+time = { version = "0.3", features = ["formatting", "parsing", "serde", "macros"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal"] }
+toml = "0.8"
+
+[dev-dependencies]
+http-body-util = "0.1"
+tower = { version = "0.5", features = ["util"] }

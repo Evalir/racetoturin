@@ -1,0 +1,138 @@
+:root {
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #5f6368;
+  --line: #d9dce1;
+  --accent: #0b57d0;
+  --cut: #b3261e;
+  --ok: #0a7a33;
+  --warn: #8a5300;
+  --chip: #eef2f7;
+  --selected-bg: #f4f9f4;
+  --slam-bg: #fff7e6;
+  --stale-bg: #fdeded;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111417;
+    --fg: #e8eaed;
+    --muted: #9aa0a6;
+    --line: #3c4043;
+    --accent: #8ab4f8;
+    --cut: #f28b82;
+    --ok: #81c995;
+    --warn: #fdd663;
+    --chip: #23282e;
+    --selected-bg: #16211a;
+    --slam-bg: #262013;
+    --stale-bg: #2c1a19;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+main { max-width: 66rem; margin: 0 auto; padding: 0 1rem 3rem; }
+a { color: var(--accent); }
+h1 { font-size: 1.6rem; margin: 1rem 0 0.25rem; }
+h2 { font-size: 1.15rem; margin: 1.5rem 0 0.5rem; }
+.lede { color: var(--muted); margin-top: 0; }
+
+.skip {
+  position: absolute; left: -999px; top: 0;
+  background: var(--accent); color: var(--bg); padding: 0.5rem 1rem;
+}
+.skip:focus { left: 0; z-index: 10; }
+
+header.site, footer.site {
+  border-bottom: 1px solid var(--line);
+  padding: 0.5rem 1rem;
+  max-width: 66rem;
+  margin: 0 auto;
+}
+footer.site { border-bottom: 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.85rem; }
+.brand { margin: 0; font-weight: 700; }
+.brand a { text-decoration: none; color: var(--fg); }
+.tag {
+  font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+  background: var(--chip); border-radius: 3px; padding: 0.1rem 0.4rem;
+  vertical-align: middle; color: var(--muted);
+}
+.unofficial { margin: 0.25rem 0 0; font-size: 0.8rem; color: var(--muted); }
+
+.freshness {
+  border: 1px solid var(--line); border-radius: 6px;
+  padding: 0.5rem 0.75rem; margin: 1rem 0; font-size: 0.85rem;
+}
+.freshness p { margin: 0.15rem 0; }
+.freshness.stale { background: var(--stale-bg); border-color: var(--cut); }
+.stale-note { color: var(--cut); }
+.provenance { color: var(--muted); font-size: 0.78rem; }
+
+.badge {
+  display: inline-block; font-size: 0.72rem; font-weight: 600;
+  border-radius: 3px; padding: 0.05rem 0.4rem; white-space: nowrap;
+  background: var(--chip); color: var(--fg);
+}
+.badge.acc { border: 1px solid var(--line); }
+.badge.official { background: var(--ok); color: var(--bg); }
+.badge.st-in { border: 1px solid var(--ok); color: var(--ok); }
+.badge.st-slam { border: 1px solid var(--warn); color: var(--warn); }
+.badge.st-alt { border: 1px solid var(--muted); color: var(--muted); }
+.badge.st-out { border: 1px solid var(--cut); color: var(--cut); }
+
+.summary { border: 1px solid var(--line); border-radius: 6px; padding: 0.25rem 0.75rem 0.75rem; }
+.seats { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0.5rem; margin: 0.5rem 0; }
+.seats dt { font-size: 0.75rem; text-transform: uppercase; color: var(--muted); }
+.seats dd { margin: 0; }
+.basis { font-size: 0.9rem; color: var(--muted); margin-bottom: 0.25rem; }
+
+.table-wrap { overflow-x: auto; }
+table.race { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+table.race th, table.race td { padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--line); }
+table.race th { font-size: 0.75rem; text-transform: uppercase; color: var(--muted); text-align: right; }
+table.race th.left { text-align: left; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.left { text-align: left; }
+td.points { font-weight: 700; }
+td.move.up { color: var(--ok); }
+td.move.down { color: var(--cut); }
+td.move.flat { color: var(--muted); }
+.cc { font-size: 0.72rem; color: var(--muted); }
+.event { color: var(--muted); font-size: 0.85rem; }
+td.margin.pos { color: var(--ok); }
+td.margin.neg { color: var(--cut); }
+
+tr.selected { background: var(--selected-bg); }
+tr.slam-pick { background: var(--slam-bg); }
+tr.slam-pick td.player { font-weight: 600; }
+tr.alternate td.player { font-style: italic; }
+tr.withdrawn { opacity: 0.55; text-decoration: line-through; }
+
+tr.cutline td {
+  border-bottom: 3px double var(--cut);
+  color: var(--cut); font-size: 0.72rem; font-weight: 600;
+  text-transform: uppercase; text-align: center; padding: 0.15rem;
+}
+tr.cutline.strong td { border-bottom-style: solid; border-bottom-width: 3px; }
+
+.rules { margin-top: 1.5rem; }
+.rules summary { cursor: pointer; font-weight: 600; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  .col-x { display: none; }
+  main { padding: 0 0.5rem 2rem; }
+  table.race { font-size: 0.85rem; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  a { transition: color 120ms ease; }
+}

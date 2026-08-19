@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Race to Turin</h1>
+<p class="lede">Who would qualify for the {{ season }} ATP Finals in Turin if selection happened now — and what can change this week.</p>
+
+<section class="freshness{% if fresh.is_stale %} stale{% endif %}" aria-label="Data freshness">
+  <p>
+    <span class="badge acc">{{ fresh.accuracy_label }}</span>
+    source <time datetime="{{ fresh.source_dt }}">{{ fresh.source_human }}</time>
+    · generated <time datetime="{{ fresh.generated_dt }}">{{ fresh.generated_human }}</time>
+    · source age {{ fresh.age }}
+    {% if fresh.is_stale %}<strong class="stale-note">Stale: showing the last verified snapshot.</strong>{% endif %}
+  </p>
+  <p class="provenance">Source: {{ fresh.source }} · parser {{ fresh.parser_version }} · ruleset {{ fresh.ruleset }}</p>
+</section>
+
+<section class="summary" aria-label="Qualification summary">
+  <h2>If the season ended now</h2>
+  <dl class="seats">
+    <div><dt>Officially qualified</dt><dd>{{ summary.officials }}</dd></div>
+    <div><dt>Provisional seats 1–7</dt><dd>{{ summary.top_seven }}</dd></div>
+    <div><dt>Seat 8</dt><dd>{{ summary.eighth }}</dd></div>
+    <div><dt>First alternate</dt><dd>{{ summary.alternate }}</dd></div>
+  </dl>
+  <p class="basis">{{ summary.basis_sentence }}</p>
+</section>
+
+<section aria-label="Live race table">
+  <h2>Live race — top {{ shown }} of {{ total }}</h2>
+  <div class="table-wrap">
+    <table class="race">
+      <thead>
+        <tr>
+          <th scope="col" class="num">#</th>
+          <th scope="col"><abbr title="Movement vs weekly baseline">±</abbr></th>
+          <th scope="col" class="left">Player</th>
+          <th scope="col" class="left">Status</th>
+          <th scope="col" class="num">Points</th>
+          <th scope="col" class="left">Tournament</th>
+          <th scope="col" class="num col-x"><abbr title="Total after one more win">Next</abbr></th>
+          <th scope="col" class="num col-x"><abbr title="Maximum reachable this week">Max</abbr></th>
+          <th scope="col" class="num col-x">Margin</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr class="{{ row.row_class }}">
+          <td class="num rank">{{ row.rank }}</td>
+          <td class="move {{ row.movement_class }}"><span aria-hidden="true">{{ row.movement }}</span><span class="sr-only">{{ row.movement_sr }}</span></td>
+          <td class="left player">{{ row.name }} <span class="cc">{{ row.country }}</span></td>
+          <td class="left status">
+            {% if row.official %}<span class="badge official">Official</span>{% endif %}
+            {% if row.has_status %}<span class="badge st-{{ row.status_class }}">{{ row.status_label }}</span>{% endif %}
+          </td>
+          <td class="num points">{{ row.points }}</td>
+          <td class="left event">{{ row.event }}</td>
+          <td class="num col-x" title="{{ row.next_title }}">{{ row.next }}</td>
+          <td class="num col-x">{{ row.max }}</td>
+          <td class="num col-x margin {{ row.margin_class }}">{{ row.margin }}</td>
+        </tr>
+        {% if row.cut_strong_after %}
+        <tr class="cutline strong"><td colspan="9">Top seven — qualify directly on race rank</td></tr>
+        {% endif %}
+        {% if row.cut_ordinary_after %}
+        <tr class="cutline"><td colspan="9">Provisional qualification line — seat 8 by race rank</td></tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if more_available %}<p><a href="/race?limit=50">Show more of the table</a></p>{% endif %}
+</section>
+
+<details class="rules">
+  <summary>How qualification works</summary>
+  <ol>
+    <li>The top seven players in the race qualify directly.</li>
+    <li>If a current-year Grand Slam champion is ranked 8–20, the eighth seat goes to the highest-ranked such champion (at most two are eligible; the second becomes the first alternate).</li>
+    <li>Otherwise the eighth seat goes to the player ranked 8, and the next player is the first alternate.</li>
+  </ol>
+  {% if slam_provision_active %}
+  <p>The Grand Slam champion provision is currently active, so the highlighted row below the top seven holds seat 8 and there is no contiguous 8/9 cutoff.</p>
+  {% endif %}
+  <p>Provisional status is this rule applied to the current table, labelled “if the season ended now.” Official qualification is only ever recorded from an announcement, never inferred from points. See the <a href="/methodology">methodology</a> page.</p>
+</details>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Methodology — Race to Turin local build{% endblock %}
+
+{% block content %}
+<h1>Methodology &amp; data sources</h1>
+
+<h2>What this local build is</h2>
+<p>This is the fully local MVP of racetotur.in. It runs the production pipeline — HTML parser, snapshot validation, versioned qualification policy, and server-rendered UI — against a checked-in synthetic fixture instead of a live fetch. The process makes <strong>zero network requests</strong>: the fixture file stands in for the public ATP Live Race to Turin page, and every name, point total, tournament result, and Grand Slam title in it is fictional sample data.</p>
+
+<h2>Where each number comes from</h2>
+<ul>
+  <li><strong>Rank, movement, points, tournament state, next, max:</strong> parsed from the fixture ({{ source }}) by parser <code>{{ parser_version }}</code>, exactly as a live scraper would parse the public page. Displayed totals are treated as source facts; nothing is reconstructed or estimated.</li>
+  <li><strong>Official qualifiers, Grand Slam titles, withdrawals:</strong> a small curated file, because officially announced status must never be inferred from points.</li>
+  <li><strong>Provisional selection:</strong> ruleset <code>{{ ruleset }}</code> applied to the parsed table: top seven by race rank, then up to two current-year Grand Slam champions ranked 8–20 by rank, then everyone else in rank order; the first eight unique players are selected and the ninth is the first alternate.</li>
+</ul>
+
+<h2>Accuracy and freshness</h2>
+<p>Every page shows the source timestamp, the generation timestamp, and the source age. When the source age exceeds the configured threshold the page is labelled <em>stale — last known good</em> rather than pretending to be live. A candidate snapshot that fails structural validation (missing heading, implausible row count, duplicate ranks or identities, unparseable or non-monotonic points) is rejected wholesale and can never replace the last verified snapshot.</p>
+
+<h2>Unavailable values</h2>
+<p>When the source displays no “next” or “max” value — a player is eliminated or not entered this week — the field is shown as unavailable with the reason, never as an estimate.</p>
+
+<h2>Independence</h2>
+<p>racetotur.in is an independent, noncommercial fan project with no affiliation to the ATP. The production design reads only the public race page at a modest global cadence with an honest user agent and a one-command kill switch; this local build removes even that and reads only local files.</p>
+
+<p>Season: {{ season }}.</p>
+{% endblock %}
