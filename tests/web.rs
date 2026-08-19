@@ -179,6 +179,28 @@ async fn css_is_served() {
     assert!(body.contains("cutline"));
 }
 
+/// The table may scroll horizontally on a phone; the page must not. That rests
+/// entirely on .table-wrap being a scroll container, so guard it.
+#[tokio::test]
+async fn wide_table_scrolls_inside_its_own_container() {
+    let (_, css) = get_body(app("live/curated.toml").await, "/static/app.css").await;
+    let rule = css
+        .lines()
+        .find(|l| l.starts_with(".table-wrap"))
+        .expect(".table-wrap rule is missing");
+    assert!(
+        rule.contains("overflow-x: auto"),
+        "the table must scroll in its own container, not the page: {rule:?}"
+    );
+
+    // Status labels stay unabbreviated — scrolling the table is preferred over
+    // shortening them.
+    let (_, body) = get_body(app("live/curated.toml").await, "/").await;
+    assert!(body.contains(">First alternate<"));
+    assert!(body.contains(">Official<"));
+    assert!(body.contains(">Top 7<"));
+}
+
 /// Markup and styles ship together, so a stale cached stylesheet renders new
 /// markup wrong. The URL must carry a content hash that changes with the file.
 #[tokio::test]

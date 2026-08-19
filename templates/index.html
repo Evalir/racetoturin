@@ -36,7 +36,7 @@
       <thead>
         <tr>
           <th scope="col" class="num">#</th>
-          <th scope="col" class="col-move"><abbr title="Places moved since our previous snapshot">±</abbr></th>
+          <th scope="col"><abbr title="Places moved since our previous snapshot">±</abbr></th>
           <th scope="col" class="left">Player</th>
           <th scope="col" class="left">Status</th>
           <th scope="col" class="num">Points</th>
@@ -47,11 +47,11 @@
         {% for row in rows %}
         <tr class="{{ row.row_class }}">
           <td class="num rank">{{ row.rank }}</td>
-          <td class="move col-move {{ row.movement_class }}"><span aria-hidden="true">{{ row.movement }}</span><span class="sr-only">{{ row.movement_sr }}</span></td>
+          <td class="move {{ row.movement_class }}"><span aria-hidden="true">{{ row.movement }}</span><span class="sr-only">{{ row.movement_sr }}</span></td>
           <td class="left player">{{ row.name }} <span class="cc">{{ row.country }}</span></td>
           <td class="left status">
-            {% if row.official %}<span class="badge official" title="Officially qualified"><span class="lbl-full">Official</span><span class="lbl-abbr">Q</span></span>{% endif %}
-            {% if !row.status_label.is_empty() %}<span class="badge st-{{ row.status_class }}" title="{{ row.status_label }}"><span class="lbl-full">{{ row.status_label }}</span><span class="lbl-abbr">{{ row.status_short }}</span></span>{% endif %}
+            {% if row.official %}<span class="badge official">Official</span>{% endif %}
+            {% if !row.status_label.is_empty() %}<span class="badge st-{{ row.status_class }}">{{ row.status_label }}</span>{% endif %}
           </td>
           <td class="num points">{{ row.points }}</td>
           <td class="num margin {{ row.margin_class }}">{{ row.margin }}</td>
