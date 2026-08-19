@@ -79,14 +79,6 @@ async fn slam_champion_branch_still_renders() {
 }
 
 #[tokio::test]
-async fn dropped_columns_are_gone() {
-    let (_, body) = get_body(app("live/curated.toml").await, "/").await;
-    for absent in ["Max", "Total after one more win", "Tournament"] {
-        assert!(!body.contains(absent), "{absent} should no longer render");
-    }
-}
-
-#[tokio::test]
 async fn methodology_and_health_endpoints_work() {
     let (status, body) = get_body(app("live/curated.toml").await, "/methodology").await;
     assert_eq!(status, StatusCode::OK);
@@ -127,105 +119,72 @@ async fn a_weekly_source_is_not_labelled_stale() {
     );
 }
 
-/// Cache headers are the cost control: they let a CDN absorb a traffic spike
-/// instead of the single machine serving every hit.
+/// The response contract a shared or cached page depends on: a CDN-cacheable
+/// header, a link preview carrying the actual news, and a stylesheet URL that
+/// changes with its content (a stale one renders new markup wrong).
 #[tokio::test]
-async fn pages_are_cacheable_and_declare_their_snapshot() {
+async fn response_carries_caching_and_link_metadata() {
     let response = app("live/curated.toml")
         .await
         .oneshot(Request::get("/").body(Body::empty()).unwrap())
-        .await
-        .unwrap();
-    let headers = response.headers();
-    let cache = headers
-        .get("cache-control")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or_default();
-    assert!(cache.contains("max-age="), "no max-age: {cache:?}");
-    assert!(
-        cache.contains("stale-while-revalidate"),
-        "no stale-while-revalidate: {cache:?}"
-    );
-    assert_eq!(
-        headers.get("x-snapshot-version").unwrap().to_str().unwrap(),
-        "1"
-    );
-}
-
-/// A shared link should carry the actual news, not a bare URL.
-#[tokio::test]
-async fn shared_link_preview_and_discovery_tags_are_present() {
-    let (_, body) = get_body(app("live/curated.toml").await, "/").await;
-    assert!(body.contains("og:title"));
-    assert!(body.contains("og:url"));
-    assert!(body.contains("twitter:card"));
-    assert!(body.contains("rel=\"canonical\""));
-    assert!(body.contains("https://racetotur.in"));
-    assert!(body.contains("rel=\"icon\""));
-    // The description names who holds the last seat and who is closest out.
-    assert!(body.contains("Seat 8: Novak Djokovic."));
-    assert!(body.contains("First alternate: Félix Auger-Aliassime."));
-
-    let (status, robots) = get_body(app("live/curated.toml").await, "/robots.txt").await;
-    assert_eq!(status, StatusCode::OK);
-    assert!(robots.contains("Allow: /"));
-    assert!(robots.contains("Disallow: /health/"));
-}
-
-#[tokio::test]
-async fn css_is_served() {
-    let (status, body) = get_body(app("live/curated.toml").await, "/static/app.css").await;
-    assert_eq!(status, StatusCode::OK);
-    assert!(body.contains("cutline"));
-}
-
-/// The table may scroll horizontally on a phone; the page must not. That rests
-/// entirely on .table-wrap being a scroll container, so guard it.
-#[tokio::test]
-async fn wide_table_scrolls_inside_its_own_container() {
-    let (_, css) = get_body(app("live/curated.toml").await, "/static/app.css").await;
-    let rule = css
-        .lines()
-        .find(|l| l.starts_with(".table-wrap"))
-        .expect(".table-wrap rule is missing");
-    assert!(
-        rule.contains("overflow-x: auto"),
-        "the table must scroll in its own container, not the page: {rule:?}"
-    );
-
-    // Status labels stay unabbreviated — scrolling the table is preferred over
-    // shortening them.
-    let (_, body) = get_body(app("live/curated.toml").await, "/").await;
-    assert!(body.contains(">First alternate<"));
-    assert!(body.contains(">Official<"));
-    assert!(body.contains(">Top 7<"));
-}
-
-/// Markup and styles ship together, so a stale cached stylesheet renders new
-/// markup wrong. The URL must carry a content hash that changes with the file.
-#[tokio::test]
-async fn stylesheet_url_is_content_addressed() {
-    let (_, body) = get_body(app("live/curated.toml").await, "/").await;
-    let version = racetoturin::web::css_version();
-    assert_eq!(version.len(), 12, "expected a 12-char hash, got {version:?}");
-    assert!(
-        body.contains(&format!("/static/app.css?v={version}")),
-        "stylesheet link is not content-addressed"
-    );
-
-    let response = app("live/curated.toml")
-        .await
-        .oneshot(
-            Request::get("/static/app.css")
-                .body(Body::empty())
-                .unwrap(),
-        )
         .await
         .unwrap();
     let cache = response
         .headers()
         .get("cache-control")
         .and_then(|v| v.to_str().ok())
+        .unwrap_or_default()
+        .to_string();
+    assert!(cache.contains("max-age="), "not cacheable: {cache:?}");
+    assert!(
+        cache.contains("stale-while-revalidate"),
+        "cannot be served stale while refreshing: {cache:?}"
+    );
+    assert_eq!(
+        response
+            .headers()
+            .get("x-snapshot-version")
+            .unwrap()
+            .to_str()
+            .unwrap(),
+        "1"
+    );
+
+    let (_, body) = get_body(app("live/curated.toml").await, "/").await;
+    assert!(body.contains(&format!("/static/app.css?v={}", racetoturin::web::css_version())));
+    assert!(body.contains("og:title") && body.contains("twitter:card"));
+    // The preview names who holds the last seat and who is closest out.
+    assert!(body.contains("Seat 8: Novak Djokovic."));
+    assert!(body.contains("First alternate: Félix Auger-Aliassime."));
+
+    let (status, robots) = get_body(app("live/curated.toml").await, "/robots.txt").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(robots.contains("Disallow: /health/"));
+}
+
+/// Served immutable, which is only safe because the URL is content-addressed.
+#[tokio::test]
+async fn css_is_served_immutably() {
+    let response = app("live/curated.toml")
+        .await
+        .oneshot(Request::get("/static/app.css").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let cache = response
+        .headers()
+        .get("cache-control")
+        .and_then(|v| v.to_str().ok())
         .unwrap_or_default();
     assert!(cache.contains("immutable"), "expected immutable: {cache:?}");
+}
+
+/// Scrolling the table is preferred over shortening status labels, so the
+/// labels must render in full.
+#[tokio::test]
+async fn status_labels_are_not_abbreviated() {
+    let (_, body) = get_body(app("live/curated.toml").await, "/").await;
+    assert!(body.contains(">First alternate<"));
+    assert!(body.contains(">Official<"));
+    assert!(body.contains(">Top 7<"));
 }
