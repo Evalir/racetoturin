@@ -107,6 +107,9 @@ struct RowView {
     movement_class: String,
     movement_sr: String,
     name: String,
+    /// ATP profile, when Wikidata gives us an id for this player; `None`
+    /// renders the name unlinked.
+    profile_url: Option<String>,
     country: String,
     official: bool,
     status_label: String,
@@ -362,6 +365,7 @@ fn build_rows(state: &AppState) -> Vec<RowView> {
                 movement_class: movement_class.to_string(),
                 movement_sr,
                 name: row.player_name.clone(),
+                profile_url: crate::atp::profile_url(&row.player_code),
                 country: row.country.clone(),
                 official: officials.contains(row.player_code.as_str()),
                 status_label: status_label.to_string(),

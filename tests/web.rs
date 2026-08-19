@@ -188,3 +188,40 @@ async fn status_labels_are_not_abbreviated() {
     assert!(body.contains(">Official<"));
     assert!(body.contains(">Top 7<"));
 }
+
+#[tokio::test]
+async fn player_names_link_to_their_atp_profile() {
+    let (status, body) = get_body(app("live/curated.toml").await, "/").await;
+    assert_eq!(status, StatusCode::OK);
+
+    // Every player in the fixture has a Wikidata-sourced id, so every name in
+    // the table should be a link — a regression that drops the map would
+    // silently render plain text instead.
+    for (name, id) in [
+        ("Jannik Sinner", "S0AG"),
+        ("Carlos Alcaraz", "A0E2"),
+        // Accented and disambiguated titles are the ones a hand-built slug
+        // would get wrong; the id-only URL sidesteps the problem entirely.
+        ("Félix Auger-Aliassime", "AG37"),
+        ("Jakub Menšík", "M0NI"),
+    ] {
+        let expected =
+            format!("<a href=\"https://www.atptour.com/en/players/-/{id}/overview\">{name}</a>");
+        assert!(body.contains(&expected), "missing profile link: {expected}");
+    }
+}
+
+#[tokio::test]
+async fn a_player_with_no_atp_id_is_rendered_unlinked() {
+    // Nothing links to a guessed URL: an unmapped title yields no link at all.
+    assert_eq!(
+        racetoturin::atp::profile_url("Someone Not On Wikidata"),
+        None
+    );
+
+    let (_, body) = get_body(app("live/curated.toml").await, "/").await;
+    // And no link is ever built from an id that fails P536's format check.
+    for bad in ["/players/-//overview", "/players/-/overview"] {
+        assert!(!body.contains(bad), "malformed profile URL in page: {bad}");
+    }
+}

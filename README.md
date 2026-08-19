@@ -27,6 +27,14 @@ reuse with attribution, which the footer and `/methodology` provide.
 
 Why not the ATP directly: `atptour.com` refuses automated clients, and this
 project does not disguise itself or bypass access controls to get around that.
+Player names still *link* to their ATP profile — linking is not fetching. Those
+ids come from [Wikidata P536](https://www.wikidata.org/wiki/Property:P536) (CC0,
+keyed by the same article titles), resolved offline into `live/atp_ids.toml` and
+compiled in, so serving a page makes no extra request:
+
+```sh
+cargo run --bin refresh-atp-ids          # top up the map from the live article
+```
 tennisexplorer was evaluated and rejected — its terms (§2.11) explicitly forbid
 scraping and aggregating. Wikipedia is also simply the better source: it carries
 a per-tournament points ledger and a citation for every announced qualification.

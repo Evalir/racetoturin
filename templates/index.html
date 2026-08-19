@@ -48,7 +48,7 @@
         <tr class="{{ row.row_class }}">
           <td class="num rank">{{ row.rank }}</td>
           <td class="move {{ row.movement_class }}"><span aria-hidden="true">{{ row.movement }}</span><span class="sr-only">{{ row.movement_sr }}</span></td>
-          <td class="left player">{{ row.name }} <span class="cc">{{ row.country }}</span></td>
+          <td class="left player">{% if let Some(url) = row.profile_url %}<a href="{{ url }}">{{ row.name }}</a>{% else %}{{ row.name }}{% endif %} <span class="cc">{{ row.country }}</span></td>
           <td class="left status">
             {% if row.official %}<span class="badge official">Official</span>{% endif %}
             {% if !row.status_label.is_empty() %}<span class="badge st-{{ row.status_class }}">{{ row.status_label }}</span>{% endif %}

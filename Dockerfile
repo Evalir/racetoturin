@@ -7,6 +7,8 @@ COPY templates ./templates
 COPY static ./static
 COPY migrations ./migrations
 COPY fixtures ./fixtures
+# Compiled in by src/atp.rs, so it is a build input, not just runtime config.
+COPY live ./live
 RUN cargo build --release --locked
 
 FROM debian:bookworm-slim

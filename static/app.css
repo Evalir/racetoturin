@@ -144,3 +144,9 @@ tr.cutline.strong td { border-bottom-style: solid; }
   h1 { font-size: 1.15rem; }
   .seats { gap: 0.35rem; }
 }
+
+/* Player names link to their ATP profile. `color: inherit` matters: the row
+   state (selected green, slam-pick yellow, alternate magenta) has to survive
+   the link, so the anchor must not take the global cyan. */
+td.player a { color: inherit; text-underline-offset: 2px; }
+td.player a:hover, td.player a:focus { background: var(--cyan); color: var(--black); }

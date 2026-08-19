@@ -1,0 +1,28 @@
+# GENERATED — do not edit by hand.
+#
+# Wikipedia article title -> ATP player id (Wikidata property P536, CC0),
+# used to link a player's name to https://www.atptour.com/en/players/-/<id>/overview.
+# Regenerate with `cargo run --bin refresh-atp-ids`.
+#
+# Titles last read from: https://en.wikipedia.org/wiki/2026_ATP_Finals
+
+"Alex de Minaur" = "DH58"
+"Alexander Zverev" = "Z355"
+"Arthur Fils" = "F0F1"
+"Ben Shelton" = "S0S1"
+"Brandon Nakashima" = "N0AE"
+"Carlos Alcaraz" = "A0E2"
+"Casper Ruud" = "RH16"
+"Daniil Medvedev" = "MM58"
+"Flavio Cobolli" = "C0E9"
+"Frances Tiafoe" = "TD51"
+"Francisco Cerúndolo" = "C0AU"
+"Félix Auger-Aliassime" = "AG37"
+"Jakub Menšík" = "M0NI"
+"Jannik Sinner" = "S0AG"
+"Learner Tien" = "T0HA"
+"Luciano Darderi" = "D0FJ"
+"Novak Djokovic" = "D643"
+"Rafael Jódar" = "J0DZ"
+"Taylor Fritz" = "FB98"
+"Tommy Paul (tennis)" = "PL56"

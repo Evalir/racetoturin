@@ -26,6 +26,15 @@ its source. Once the data is older than the configured threshold the page labels
 <p>In-tournament projections (points after one more win, maximum reachable this week) are published
 only by the ATP. Rather than show columns of blanks, this site omits them.</p>
 
+<h2>Player links</h2>
+<p>Each player's name links to their profile on <code>atptour.com</code>. Nothing is fetched from
+there — the link is the only interaction this site has with the ATP's site. The profile ids come
+from <a href="https://www.wikidata.org/wiki/Property:P536">Wikidata property P536</a>, which
+publishes them as structured data in the public domain (CC0), keyed by the same Wikipedia article
+titles used here as player identity. The map is resolved offline and compiled into the binary, and
+the ids are format-checked before they are turned into URLs. A player with no id on Wikidata is
+shown unlinked rather than linked to a guess.</p>
+
 <h2>What is computed here</h2>
 <ul>
   <li><strong>Provisional selection</strong> — ruleset <code>{{ ruleset }}</code> applied to the
@@ -52,7 +61,7 @@ stored snapshot. Snapshots are append-only and immutable; corrections are new ve
 <h2>Licensing</h2>
 <p>Standings data originates from Wikipedia and is available under
 <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>; our reproduction of it
-is offered under the same licence. The site's source code is licensed separately (MIT) — code
+is offered under the same licence. Player profile ids from Wikidata are CC0. The site's source code is licensed separately (MIT) — code
 licensing and data licensing are not the same thing.</p>
 
 <p>Season: {{ season }}. {{ notice }}</p>

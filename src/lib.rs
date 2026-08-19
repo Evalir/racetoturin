@@ -1,3 +1,4 @@
+pub mod atp;
 pub mod curated;
 pub mod fetch;
 pub mod model;
@@ -105,6 +106,22 @@ pub async fn ingest(config: &Config, store: &storage::Store) -> Result<web::AppS
         .load_current()
         .await?
         .context("no snapshot available: the store is empty and collection is disabled or failed")?;
+    // A new entrant renders unlinked until someone reruns `refresh-atp-ids`.
+    // That degrades correctly but invisibly, so name them in the log.
+    let unlinked: Vec<&str> = snapshot
+        .rows
+        .iter()
+        .filter(|r| atp::profile_url(&r.player_code).is_none())
+        .map(|r| r.player_name.as_str())
+        .collect();
+    if !unlinked.is_empty() {
+        eprintln!(
+            "no ATP profile id for {}: {} — run `cargo run --bin refresh-atp-ids`",
+            unlinked.len(),
+            unlinked.join(", "),
+        );
+    }
+
     let selection = qualification::select(&snapshot.rows, &curated);
     Ok(web::AppState {
         snapshot,
