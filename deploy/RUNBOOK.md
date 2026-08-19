@@ -98,6 +98,23 @@ fly tokens create deploy -x 999999h    # add as GH secret FLY_API_TOKEN
 Then a workflow step running `flyctl deploy --remote-only`. Do this *after* the
 CLI deploy, never instead of it.
 
+## How the database lives here
+
+A Fly Machine's root filesystem is ephemeral: `fly deploy` replaces the machine
+wholesale, so everything except the mounted volume is rebuilt from the image. The
+volume is **local NVMe on one host**, not network storage, which is why it is fast
+and why it attaches to exactly one machine. `/data` therefore holds the only
+durable state — `racetoturin.db` plus its `-wal` and `-shm` files (WAL mode).
+
+Two consequences worth expecting:
+
+- **Deploys blip for a few seconds.** One volume means no rolling deploy: the old
+  machine must release it before the new one mounts it. Acceptable here; if it ever
+  is not, the fix is a stateless read replica, not a bigger database.
+- **One volume is one failure domain.** If its host has problems the site is down
+  until Fly recovers or you restore a snapshot onto a new volume. Tolerable because
+  the database is reconstructible — see Backups.
+
 ## Routine operations
 
 ```sh
