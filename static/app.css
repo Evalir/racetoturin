@@ -121,9 +121,29 @@ tr.cutline.strong td { border-bottom-style: solid; }
   clip: rect(0 0 0 0); white-space: nowrap;
 }
 
+/* Badges carry a full and an abbreviated label; only one is ever shown. */
+.lbl-abbr { display: none; }
+
 @media (max-width: 700px) {
   main { padding: 0 0.5rem 2rem; }
   table.race { font-size: 0.85rem; }
   /* Status badges stack rather than widening the row. */
   td.status .badge { display: block; margin: 0.1rem 0; }
+}
+
+/* Phone widths: the table must fit, not scroll. Drop the secondary movement
+   column, abbreviate status labels, and tighten spacing so that rank, player,
+   points and margin all fit a 360px viewport without wrapping names. */
+@media (max-width: 560px) {
+  .col-move { display: none; }
+  .lbl-full { display: none; }
+  .lbl-abbr { display: inline; }
+  table.race { font-size: 0.8rem; }
+  table.race th, table.race td { padding: 0.3rem 0.25rem; }
+  table.race th { letter-spacing: 0; }
+  td.player { overflow-wrap: normal; }
+  .cc { display: block; line-height: 1.1; }
+  tr.cutline td { letter-spacing: 0.05em; font-size: 0.68rem; }
+  h1 { font-size: 1.15rem; }
+  .seats { gap: 0.35rem; }
 }
