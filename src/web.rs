@@ -1,5 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
+use arc_swap::ArcSwap;
 use askama::Template;
 use axum::{
     extract::State,
@@ -25,7 +26,11 @@ pub struct AppState {
     pub stale_after: Duration,
 }
 
-pub fn router(state: Arc<AppState>) -> Router {
+/// Handlers read a snapshot of the state; the worker swaps in a new one
+/// atomically, so a request never blocks on collection.
+pub type SharedState = Arc<ArcSwap<AppState>>;
+
+pub fn router(state: SharedState) -> Router {
     Router::new()
         .route("/", get(index))
         .route("/methodology", get(methodology))
@@ -71,10 +76,6 @@ struct RowView {
     status_label: String,
     status_class: String,
     points: String,
-    event: String,
-    next: String,
-    next_title: String,
-    max: String,
     margin: String,
     margin_class: String,
     row_class: String,
@@ -145,6 +146,12 @@ fn fmt_human(t: OffsetDateTime) -> String {
     t.format(&fmt).unwrap_or_else(|_| t.to_string())
 }
 
+/// The source states a date, not a time, so render it as a date.
+fn fmt_day(t: OffsetDateTime) -> String {
+    let fmt = format_description!("[day] [month repr:long] [year]");
+    t.format(&fmt).unwrap_or_else(|_| t.to_string())
+}
+
 fn fmt_rfc3339(t: OffsetDateTime) -> String {
     t.format(&time::format_description::well_known::Rfc3339)
         .unwrap_or_else(|_| t.to_string())
@@ -154,14 +161,16 @@ fn build_fresh(state: &AppState, now: OffsetDateTime) -> FreshView {
     let age_secs = (now - state.snapshot.source_as_of).whole_seconds();
     let is_stale = age_secs > state.stale_after.as_secs() as i64;
     FreshView {
+        // The source publishes weekly with a stated date, so the page never
+        // claims to be live.
         accuracy_label: if is_stale {
             "stale — last known good".to_string()
         } else {
-            "scraped live".to_string()
+            "official weekly".to_string()
         },
         is_stale,
         source_dt: fmt_rfc3339(state.snapshot.source_as_of),
-        source_human: fmt_human(state.snapshot.source_as_of),
+        source_human: fmt_day(state.snapshot.source_as_of),
         generated_dt: fmt_rfc3339(state.snapshot.generated_at),
         generated_human: fmt_human(state.snapshot.generated_at),
         age: humanize_age(age_secs),
@@ -183,25 +192,16 @@ fn build_summary(state: &AppState) -> SummaryView {
             .unwrap_or_else(|| code.to_string())
     };
 
-    // Display names resolve through the snapshot by code, like every other
-    // name on the page; the curated name is only a fallback for a player
-    // not in the visible table.
-    let officials = if state.curated.official_qualifiers.is_empty() {
+    // Officially announced qualifications, ingested with the source that
+    // announced each one. Never inferred from points.
+    let officials = if state.snapshot.qualifiers.is_empty() {
         "None announced yet".to_string()
     } else {
         state
-            .curated
-            .official_qualifiers
+            .snapshot
+            .qualifiers
             .iter()
-            .map(|p| {
-                state
-                    .snapshot
-                    .rows
-                    .iter()
-                    .find(|r| r.player_code == p.code)
-                    .map(|r| r.player_name.clone())
-                    .unwrap_or_else(|| p.name.clone())
-            })
+            .map(|q| format!("{} ({})", name_of(&q.player_code), q.qualified_on))
             .collect::<Vec<_>>()
             .join(", ")
     };
@@ -261,7 +261,12 @@ fn build_summary(state: &AppState) -> SummaryView {
 }
 
 fn build_rows(state: &AppState) -> Vec<RowView> {
-    let officials = state.curated.official_qualifier_codes();
+    let officials: std::collections::HashSet<&str> = state
+        .snapshot
+        .qualifiers
+        .iter()
+        .map(|q| q.player_code.as_str())
+        .collect();
     let slam_active = state.selection.eighth_basis == SeatBasis::GrandSlamChampion;
 
     let mut views: Vec<RowView> = state
@@ -270,12 +275,10 @@ fn build_rows(state: &AppState) -> Vec<RowView> {
         .iter()
         .map(|row| {
             let (movement, movement_class, movement_sr) = match row.movement {
-                Some(m) if m > 0 => (format!("▲{m}"), "up", format!("up {m} from last week")),
-                Some(m) if m < 0 => {
-                    (format!("▼{}", -m), "down", format!("down {} from last week", -m))
-                }
-                Some(_) => ("·".to_string(), "flat", "no change from last week".to_string()),
-                None => ("–".to_string(), "flat", "movement not shown".to_string()),
+                Some(m) if m > 0 => (format!("▲{m}"), "up", format!("up {m} places")),
+                Some(m) if m < 0 => (format!("▼{}", -m), "down", format!("down {} places", -m)),
+                Some(_) => ("·".to_string(), "flat", "no change since last update".to_string()),
+                None => ("–".to_string(), "flat", "no previous snapshot".to_string()),
             };
 
             let provisional = state.selection.state(&row.player_code);
@@ -286,28 +289,6 @@ fn build_rows(state: &AppState) -> Vec<RowView> {
                 Provisional::FirstAlternate => ("First alternate", "alt"),
                 Provisional::Withdrawn => ("Withdrawn", "out"),
                 Provisional::NotSelected => ("", ""),
-            };
-
-            let event = match &row.event {
-                Some(e) if e.round.is_empty() => e.name.clone(),
-                Some(e) => format!("{} — {}", e.name, e.round),
-                None => row
-                    .unavailable_reason
-                    .clone()
-                    .unwrap_or_else(|| "Not playing".to_string()),
-            };
-
-            let reason = row
-                .unavailable_reason
-                .clone()
-                .unwrap_or_else(|| "not displayed by the source".to_string());
-            let (next, next_title) = match row.next_points {
-                Some(n) => (thousands(n), "Total after one more win".to_string()),
-                None => ("–".to_string(), format!("Unavailable: {reason}")),
-            };
-            let max = match row.max_this_week {
-                Some(m) => thousands(m),
-                None => "–".to_string(),
             };
 
             let (margin, margin_class) = match state.selection.margin(&row.player_code) {
@@ -339,11 +320,7 @@ fn build_rows(state: &AppState) -> Vec<RowView> {
                 official: officials.contains(row.player_code.as_str()),
                 status_label: status_label.to_string(),
                 status_class: status_class.to_string(),
-                points: thousands(row.live_points),
-                event,
-                next,
-                next_title,
-                max,
+                points: thousands(row.race_points),
                 margin,
                 margin_class: margin_class.to_string(),
                 row_class: classes.join(" "),
@@ -385,7 +362,8 @@ fn render<T: Template>(template: &T) -> Response {
     }
 }
 
-async fn index(State(state): State<Arc<AppState>>) -> Response {
+async fn index(State(shared): State<SharedState>) -> Response {
+    let state = shared.load();
     let page = IndexPage {
         season: state.curated.season,
         notice: state.curated.notice.clone(),
@@ -397,7 +375,8 @@ async fn index(State(state): State<Arc<AppState>>) -> Response {
     render(&page)
 }
 
-async fn methodology(State(state): State<Arc<AppState>>) -> Response {
+async fn methodology(State(shared): State<SharedState>) -> Response {
+    let state = shared.load();
     let page = MethodologyPage {
         season: state.curated.season,
         notice: state.curated.notice.clone(),

@@ -6,9 +6,9 @@ use sqlx::{
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteRow},
     Row, SqlitePool,
 };
-use time::{format_description::well_known::Rfc3339, OffsetDateTime};
+use time::{format_description::well_known::Rfc3339, Date, OffsetDateTime};
 
-use crate::model::{EventState, RaceRow, Snapshot};
+use crate::model::{OfficialQualifier, RaceRow, Snapshot};
 
 /// Pass as the db path to run against a throwaway in-memory database.
 pub const MEMORY: &str = ":memory:";
@@ -20,8 +20,8 @@ pub struct Store {
 #[derive(Debug, Clone, Copy)]
 pub struct PublishOutcome {
     pub version: i64,
-    /// False when the content hash matched the current snapshot and no
-    /// new version was written.
+    /// False when the content hash matched the current snapshot and no new
+    /// version was written.
     pub created: bool,
 }
 
@@ -33,11 +33,19 @@ fn parse_ts(s: &str) -> Result<OffsetDateTime> {
     OffsetDateTime::parse(s, &Rfc3339).with_context(|| format!("bad stored timestamp {s:?}"))
 }
 
-/// Hash of the normalized rows only: a re-fetch whose visible content is
-/// identical (even with a fresher page timestamp) creates no new snapshot.
-fn content_hash(rows: &[RaceRow]) -> Result<String> {
-    let canonical = serde_json::to_string(rows).context("cannot serialize rows for hashing")?;
-    Ok(format!("{:x}", Sha256::digest(canonical.as_bytes())))
+/// Hash of the normalized content only: a re-fetch whose visible facts are
+/// identical creates no new snapshot, even with a fresher page timestamp.
+/// Qualifiers are included so an announcement alone publishes a new version.
+fn content_hash(snapshot: &Snapshot) -> Result<String> {
+    let rows = serde_json::to_string(&snapshot.rows).context("cannot serialize rows")?;
+    let mut hasher = Sha256::new();
+    hasher.update(rows.as_bytes());
+    for q in &snapshot.qualifiers {
+        hasher.update(
+            format!("|{}@{}={}", q.player_code, q.qualified_on, q.source_url).as_bytes(),
+        );
+    }
+    Ok(format!("{:x}", hasher.finalize()))
 }
 
 impl Store {
@@ -59,8 +67,8 @@ impl Store {
         .foreign_keys(true)
         .busy_timeout(Duration::from_secs(5));
 
-        // One connection: SQLite is single-writer, the database is never on
-        // the request path, and this keeps :memory: databases coherent.
+        // One connection: SQLite is single-writer, the database is never on the
+        // request path, and this keeps :memory: databases coherent.
         let pool = SqlitePoolOptions::new()
             .max_connections(1)
             .connect_with(options)
@@ -73,15 +81,10 @@ impl Store {
         Ok(Self { pool })
     }
 
-    pub async fn close(self) {
-        self.pool.close().await;
-    }
-
     /// Insert a validated candidate as a new immutable snapshot and move the
-    /// current pointer, unless its content hash matches what is already
-    /// current — then the stored snapshot stands and nothing is written.
+    /// current pointer, unless its content matches what is already current.
     pub async fn publish_if_changed(&self, snapshot: &Snapshot) -> Result<PublishOutcome> {
-        let hash = content_hash(&snapshot.rows)?;
+        let hash = content_hash(snapshot)?;
         let mut tx = self.pool.begin().await?;
 
         let current: Option<(i64, String)> = sqlx::query_as(
@@ -90,8 +93,8 @@ impl Store {
         )
         .fetch_optional(&mut *tx)
         .await?;
-        if let Some((version, existing_hash)) = current {
-            if existing_hash == hash {
+        if let Some((version, existing)) = current {
+            if existing == hash {
                 return Ok(PublishOutcome {
                     version,
                     created: false,
@@ -116,23 +119,29 @@ impl Store {
         for row in &snapshot.rows {
             sqlx::query(
                 "INSERT INTO snapshot_rows
-                   (snapshot_id, rank, movement, player_code, player_name, country,
-                    live_points, event_name, event_round, next_points, max_this_week,
-                    unavailable_reason)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                   (snapshot_id, rank, player_code, player_name, country, race_points)
+                 VALUES (?, ?, ?, ?, ?, ?)",
             )
             .bind(version)
             .bind(row.rank as i64)
-            .bind(row.movement)
             .bind(&row.player_code)
             .bind(&row.player_name)
             .bind(&row.country)
-            .bind(row.live_points as i64)
-            .bind(row.event.as_ref().map(|e| e.name.as_str()))
-            .bind(row.event.as_ref().map(|e| e.round.as_str()))
-            .bind(row.next_points.map(|v| v as i64))
-            .bind(row.max_this_week.map(|v| v as i64))
-            .bind(row.unavailable_reason.as_deref())
+            .bind(row.race_points as i64)
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        for q in &snapshot.qualifiers {
+            sqlx::query(
+                "INSERT INTO snapshot_qualifiers
+                   (snapshot_id, player_code, qualified_on, source_url)
+                 VALUES (?, ?, ?, ?)",
+            )
+            .bind(version)
+            .bind(&q.player_code)
+            .bind(q.qualified_on.to_string())
+            .bind(&q.source_url)
             .execute(&mut *tx)
             .await?;
         }
@@ -153,58 +162,106 @@ impl Store {
     }
 
     /// The snapshot the current pointer designates, or None on a fresh
-    /// database.
+    /// database. Row movement is filled in from the preceding snapshot.
     pub async fn load_current(&self) -> Result<Option<(i64, Snapshot)>> {
-        let meta = sqlx::query(
+        let Some(meta) = sqlx::query(
             "SELECT s.id, s.created_at, s.source_as_of, s.source, s.parser_version
              FROM snapshots s JOIN current_snapshot c ON c.snapshot_id = s.id",
         )
         .fetch_optional(&self.pool)
-        .await?;
-        let Some(meta) = meta else {
+        .await?
+        else {
             return Ok(None);
         };
         let version: i64 = meta.get("id");
 
+        let mut rows = self.rows_of(version).await?;
+        let previous = self.previous_ranks(version).await?;
+        for row in &mut rows {
+            if let Some(prev) = previous.get(row.player_code.as_str()) {
+                row.movement = Some(*prev - row.rank as i32);
+            }
+        }
+
+        let qualifiers = sqlx::query(
+            "SELECT player_code, qualified_on, source_url
+             FROM snapshot_qualifiers WHERE snapshot_id = ? ORDER BY qualified_on",
+        )
+        .bind(version)
+        .fetch_all(&self.pool)
+        .await?
+        .iter()
+        .map(|r| {
+            let raw: String = r.get("qualified_on");
+            Ok(OfficialQualifier {
+                player_code: r.get("player_code"),
+                qualified_on: Date::parse(
+                    &raw,
+                    &time::macros::format_description!("[year]-[month]-[day]"),
+                )
+                .with_context(|| format!("bad stored date {raw:?}"))?,
+                source_url: r.get("source_url"),
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+        Ok(Some((
+            version,
+            Snapshot {
+                source_as_of: parse_ts(meta.get("source_as_of"))?,
+                generated_at: parse_ts(meta.get("created_at"))?,
+                source: meta.get("source"),
+                parser_version: meta.get("parser_version"),
+                rows,
+                qualifiers,
+            },
+        )))
+    }
+
+    async fn rows_of(&self, version: i64) -> Result<Vec<RaceRow>> {
         let rows = sqlx::query(
-            "SELECT rank, movement, player_code, player_name, country, live_points,
-                    event_name, event_round, next_points, max_this_week, unavailable_reason
+            "SELECT rank, player_code, player_name, country, race_points
              FROM snapshot_rows WHERE snapshot_id = ? ORDER BY rank",
         )
         .bind(version)
         .fetch_all(&self.pool)
         .await?;
-
-        let rows: Vec<RaceRow> = rows.iter().map(row_from_db).collect();
-        let snapshot = Snapshot {
-            source_as_of: parse_ts(meta.get("source_as_of"))?,
-            generated_at: parse_ts(meta.get("created_at"))?,
-            source: meta.get("source"),
-            parser_version: meta.get("parser_version"),
-            rows,
-        };
-        Ok(Some((version, snapshot)))
+        Ok(rows.iter().map(row_from_db).collect())
     }
 
+    /// Ranks in the newest snapshot older than `version`, for derived movement.
+    async fn previous_ranks(
+        &self,
+        version: i64,
+    ) -> Result<std::collections::HashMap<String, i32>> {
+        let previous: Option<i64> =
+            sqlx::query_scalar("SELECT MAX(id) FROM snapshots WHERE id < ?")
+                .bind(version)
+                .fetch_optional(&self.pool)
+                .await?
+                .flatten();
+        let Some(previous) = previous else {
+            return Ok(Default::default());
+        };
+        let rows = sqlx::query("SELECT rank, player_code FROM snapshot_rows WHERE snapshot_id = ?")
+            .bind(previous)
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(rows
+            .iter()
+            .map(|r| (r.get::<String, _>("player_code"), r.get::<i64, _>("rank") as i32))
+            .collect())
+    }
 }
 
 fn row_from_db(r: &SqliteRow) -> RaceRow {
-    let event_name: Option<String> = r.get("event_name");
-    let event_round: Option<String> = r.get("event_round");
     let as_u32 = |v: i64| -> u32 { v.max(0) as u32 };
     RaceRow {
         rank: as_u32(r.get::<i64, _>("rank")),
-        movement: r.get("movement"),
+        movement: None,
         player_code: r.get("player_code"),
         player_name: r.get("player_name"),
         country: r.get("country"),
-        live_points: as_u32(r.get::<i64, _>("live_points")),
-        event: event_name.map(|name| EventState {
-            name,
-            round: event_round.unwrap_or_default(),
-        }),
-        next_points: r.get::<Option<i64>, _>("next_points").map(as_u32),
-        max_this_week: r.get::<Option<i64>, _>("max_this_week").map(as_u32),
-        unavailable_reason: r.get("unavailable_reason"),
+        race_points: as_u32(r.get::<i64, _>("race_points")),
     }
 }

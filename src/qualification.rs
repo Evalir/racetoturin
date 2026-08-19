@@ -118,13 +118,13 @@ pub fn select(rows: &[RaceRow], curated: &Curated) -> Selection {
         if let (Some(eighth), Some(alternate)) = (eighth, alternate) {
             // Selected players show their cushion over the first player out;
             // chasers show their deficit to the current seat-8 holder.
-            let cushion_line = alternate.live_points as i64;
-            let deficit_line = eighth.live_points as i64;
+            let cushion_line = alternate.race_points as i64;
+            let deficit_line = eighth.race_points as i64;
             for (i, row) in order.iter().enumerate() {
                 let margin = if i < 8 {
-                    row.live_points as i64 - cushion_line
+                    row.race_points as i64 - cushion_line
                 } else {
-                    row.live_points as i64 - deficit_line
+                    row.race_points as i64 - deficit_line
                 };
                 margins.insert(row.player_code.clone(), margin);
             }
@@ -152,11 +152,7 @@ mod tests {
             player_code: code.to_string(),
             player_name: format!("Player {code}"),
             country: "USA".to_string(),
-            live_points: points,
-            event: None,
-            next_points: None,
-            max_this_week: None,
-            unavailable_reason: Some("not playing this week".to_string()),
+            race_points: points,
         }
     }
 
@@ -169,7 +165,6 @@ mod tests {
     fn curated_with(champs: &[&str], withdrawals: &[&str]) -> Curated {
         let player = |code: &&str| CuratedPlayer {
             code: code.to_string(),
-            name: code.to_string(),
             source: None,
         };
         Curated {
@@ -177,7 +172,6 @@ mod tests {
             ruleset: "test".to_string(),
             notice: String::new(),
             slam_champions: champs.iter().map(player).collect(),
-            official_qualifiers: vec![],
             withdrawals: withdrawals.iter().map(player).collect(),
         }
     }

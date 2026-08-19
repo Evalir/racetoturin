@@ -2,7 +2,7 @@
 
 {% block content %}
 <h1>Race to Turin</h1>
-<p class="lede">Who would qualify for the {{ season }} ATP Finals in Turin if selection happened now — and what can change this week.</p>
+<p class="lede">Who would qualify for the {{ season }} ATP Finals in Turin if selection happened now.</p>
 
 <section class="freshness{% if fresh.is_stale %} stale{% endif %}" aria-label="Data freshness">
   <p>
@@ -26,21 +26,18 @@
   <p class="basis">{{ summary.basis_sentence }}</p>
 </section>
 
-<section aria-label="Live race table">
-  <h2>Live race — top {{ rows.len() }}</h2>
+<section aria-label="Race standings table">
+  <h2>Official standings — top {{ rows.len() }}</h2>
   <div class="table-wrap">
     <table class="race">
       <thead>
         <tr>
           <th scope="col" class="num">#</th>
-          <th scope="col"><abbr title="Movement vs weekly baseline">±</abbr></th>
+          <th scope="col"><abbr title="Places moved since our previous snapshot">±</abbr></th>
           <th scope="col" class="left">Player</th>
           <th scope="col" class="left">Status</th>
           <th scope="col" class="num">Points</th>
-          <th scope="col" class="left">Tournament</th>
-          <th scope="col" class="num col-x"><abbr title="Total after one more win">Next</abbr></th>
-          <th scope="col" class="num col-x"><abbr title="Maximum reachable this week">Max</abbr></th>
-          <th scope="col" class="num col-x">Margin</th>
+          <th scope="col" class="num">Margin</th>
         </tr>
       </thead>
       <tbody>
@@ -54,16 +51,13 @@
             {% if !row.status_label.is_empty() %}<span class="badge st-{{ row.status_class }}">{{ row.status_label }}</span>{% endif %}
           </td>
           <td class="num points">{{ row.points }}</td>
-          <td class="left event">{{ row.event }}</td>
-          <td class="num col-x" title="{{ row.next_title }}">{{ row.next }}</td>
-          <td class="num col-x">{{ row.max }}</td>
-          <td class="num col-x margin {{ row.margin_class }}">{{ row.margin }}</td>
+          <td class="num margin {{ row.margin_class }}">{{ row.margin }}</td>
         </tr>
         {% if row.cut_strong_after %}
-        <tr class="cutline strong"><td colspan="9">Top seven — qualify directly on race rank</td></tr>
+        <tr class="cutline strong"><td colspan="6">Top seven — qualify directly on race rank</td></tr>
         {% endif %}
         {% if row.cut_ordinary_after %}
-        <tr class="cutline"><td colspan="9">Provisional qualification line — seat 8 by race rank</td></tr>
+        <tr class="cutline"><td colspan="6">Provisional qualification line — seat 8 by race rank</td></tr>
         {% endif %}
         {% endfor %}
       </tbody>

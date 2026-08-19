@@ -1,0 +1,15 @@
+# TEST FIXTURE ONLY — not published data.
+#
+# The real 2026 season has all three Grand Slam champions inside the top three,
+# so seat 8 falls to race rank and the champion provision never fires. This
+# hypothetical moves a champion title to a player ranked 8–20 so the other
+# branch of the qualification rule stays under test.
+
+season = 2026
+ruleset = "atp-singles-2026.1-test"
+notice = "Test fixture: the Grand Slam champion attribution below is hypothetical."
+
+# Ranked 12th in the fixture standings, i.e. inside the 8–20 window.
+[[slam_champions]]
+code = "Jakub Menšík"
+source = "hypothetical, for testing the champion provision"

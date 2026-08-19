@@ -1,28 +1,60 @@
 {% extends "base.html" %}
 
-{% block title %}Methodology — Race to Turin local build{% endblock %}
+{% block title %}Methodology — Race to Turin{% endblock %}
 
 {% block content %}
 <h1>Methodology &amp; data sources</h1>
 
-<h2>What this local build is</h2>
-<p>This is the fully local MVP of racetotur.in. It runs the production pipeline — HTML parser, snapshot validation, versioned qualification policy, and server-rendered UI — against a local HTML file instead of a live fetch. The process makes <strong>zero network requests</strong>: the configured fixture stands in for the public ATP Live Race to Turin page. {{ notice }}</p>
+<h2>Where the numbers come from</h2>
+<p>Standings and official qualification data are read from the English Wikipedia article
+<a href="https://en.wikipedia.org/wiki/{{ season }}_ATP_Finals">{{ season }} ATP Finals</a> through
+Wikipedia's public API, once every six hours. The article's wikitext is parsed rather than its
+rendered page, because the markup is more stable. Source: <code>{{ source }}</code>, parser
+<code>{{ parser_version }}</code>.</p>
 
-<h2>Where each number comes from</h2>
+<p>ATP's own site refuses automated clients, and this project does not disguise itself or bypass
+any access control to get around that. Wikipedia is used instead because its content is openly
+licensed for reuse, its API is intended for programmatic access, and it carries a per-tournament
+points ledger plus a citation for every announced qualification.</p>
+
+<h2>Freshness — this page is not live</h2>
+<p>Wikipedia publishes these standings weekly and states the date they are current to. That stated
+date is what the page shows as the source date, and the page never claims to be more current than
+its source. Once the data is older than the configured threshold the page labels itself
+<em>stale — last known good</em> rather than implying freshness it does not have.</p>
+
+<p>In-tournament projections (points after one more win, maximum reachable this week) are published
+only by the ATP. Rather than show columns of blanks, this site omits them.</p>
+
+<h2>What is computed here</h2>
 <ul>
-  <li><strong>Rank, movement, points, tournament state, next, max:</strong> parsed from the fixture ({{ source }}) by parser <code>{{ parser_version }}</code>, exactly as a live scraper would parse the public page. Displayed totals are treated as source facts; nothing is reconstructed or estimated.</li>
-  <li><strong>Official qualifiers, Grand Slam titles, withdrawals:</strong> a small curated file, because officially announced status must never be inferred from points.</li>
-  <li><strong>Provisional selection:</strong> ruleset <code>{{ ruleset }}</code> applied to the parsed table: top seven by race rank, then up to two current-year Grand Slam champions ranked 8–20 by rank, then everyone else in rank order; the first eight unique players are selected and the ninth is the first alternate.</li>
+  <li><strong>Provisional selection</strong> — ruleset <code>{{ ruleset }}</code> applied to the
+  parsed table: the top seven by race rank, then up to two current-year Grand Slam champions ranked
+  8–20 in ranking order, then everyone else in rank order. The first eight unique players are the
+  provisional selections and the ninth is the first alternate. Labelled “if the season ended now.”</li>
+  <li><strong>Margins</strong> — signed points distance to the qualification line, suppressed when
+  the Grand Slam champion provision is active because no single contiguous line exists then.</li>
+  <li><strong>Movement</strong> — derived by comparing this snapshot with our own previous stored
+  snapshot, not taken from any source.</li>
 </ul>
 
-<h2>Accuracy and freshness</h2>
-<p>Every page shows the source timestamp, the generation timestamp, and the source age. When the source age exceeds the configured threshold the page is labelled <em>stale — last known good</em> rather than pretending to be live. A candidate snapshot that fails structural validation (missing heading, implausible row count, duplicate ranks or identities, unparseable or non-monotonic points) is rejected wholesale and can never replace the last verified snapshot.</p>
+<h2>Official versus provisional</h2>
+<p>Officially announced qualification is never inferred from points. Each announcement is ingested
+with the URL that announced it and stored alongside the snapshot; provisional selection is always
+computed and always labelled as such.</p>
 
-<h2>Unavailable values</h2>
-<p>When the source displays no “next” or “max” value — a player is eliminated or not entered this week — the field is shown as unavailable with the reason, never as an estimate.</p>
+<h2>Integrity</h2>
+<p>Every fetch produces a candidate snapshot that must pass structural validation — the table must
+be present, ranks contiguous and unique, points non-increasing, and any announced qualifier must
+appear in the standings. A candidate that fails is rejected wholesale and can never replace the
+stored snapshot. Snapshots are append-only and immutable; corrections are new versions.</p>
 
-<h2>Independence</h2>
-<p>racetotur.in is an independent, noncommercial fan project with no affiliation to the ATP. The production design reads only the public race page at a modest global cadence with an honest user agent and a one-command kill switch; this local build removes even that and reads only local files.</p>
+<h2>Licensing and independence</h2>
+<p>racetotur.in is an independent, noncommercial project with no affiliation to the ATP. It uses no
+ATP logo, player photograph, or trade dress. Standings data originates from Wikipedia and is
+available under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>; our
+reproduction of it is offered under the same licence. The site's source code is licensed
+separately (MIT) — code licensing and data licensing are not the same thing.</p>
 
-<p>Season: {{ season }}.</p>
+<p>Season: {{ season }}. {{ notice }}</p>
 {% endblock %}

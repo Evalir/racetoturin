@@ -10,14 +10,19 @@
 <body>
   <a class="skip" href="#main">Skip to content</a>
   <header class="site">
-    <p class="brand"><a href="/">racetotur.in</a> <span class="tag">local build</span></p>
+    <p class="brand"><a href="/">racetotur.in</a> <span class="tag">unofficial</span></p>
     <p class="unofficial">Independent and unofficial. Not affiliated with the ATP. {{ notice }}</p>
   </header>
   <main id="main">
     {% block content %}{% endblock %}
   </main>
   <footer class="site">
-    <p><a href="/methodology">Methodology &amp; data sources</a> · served entirely from local files, zero network requests</p>
+    <p>
+      Standings from <a href="https://en.wikipedia.org/wiki/{{ season }}_ATP_Finals">Wikipedia — {{ season }} ATP Finals</a>,
+      extracted and reformatted, available under
+      <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+      · <a href="/methodology">Methodology &amp; data sources</a>
+    </p>
   </footer>
 </body>
 </html>

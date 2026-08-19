@@ -6,6 +6,7 @@ COPY src ./src
 COPY templates ./templates
 COPY static ./static
 COPY migrations ./migrations
+COPY fixtures ./fixtures
 RUN cargo build --release --locked
 
 FROM debian:bookworm-slim

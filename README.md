@@ -1,64 +1,81 @@
-# racetotur.in — local MVP
+# racetotur.in
 
 Who would qualify for the ATP Finals in Turin if selection happened now?
 
-The pipeline runs once at startup: parse `live/race.html` into a validated
-candidate → publish it to SQLite (append-only snapshots, content-hash dedup,
-atomic current pointer) → apply the versioned Turin qualification rule → serve
-the table from memory as server-rendered HTML. The process makes **zero network
-requests** and serves **no JavaScript**.
+The app fetches the standings itself: parse Wikipedia's `<season> ATP Finals`
+article → validate the candidate → publish to SQLite (append-only, content-hash
+dedup, atomic pointer) → apply the versioned Turin qualification rule → serve
+from memory as server-rendered HTML. No JavaScript is served. It refreshes every
+six hours and never claims to be fresher than its source.
 
 ## Run
 
 ```sh
 cargo run                # → http://127.0.0.1:8080/
-docker compose up        # same thing in a container, SQLite in a volume
+docker compose up        # same, SQLite persisted in a volume
 ```
 
-The prebuilt image is at `ghcr.io/evalir/racetoturin`.
+Prebuilt image: `ghcr.io/evalir/racetoturin`.
 
-## The data, honestly
+## The data
 
-`live/race.html` holds real Race to Turin standings — a small, attributed,
-normalized extract as displayed by perfect-tennis.com (community source), with
-the check time in the file. `live/curated.toml` holds the season's official
-facts (Grand Slam champions with source links, official qualifiers,
-withdrawals) — these are never inferred from points.
+Standings, per-player countries, and **official qualifications with the URL that
+announced each one** come from the English Wikipedia article
+[2026 ATP Finals](https://en.wikipedia.org/wiki/2026_ATP_Finals), read through
+Wikipedia's public API. Content there is CC BY-SA 4.0 — explicitly licensed for
+reuse with attribution, which the footer and `/methodology` provide.
 
-There is no automated fetcher yet because atptour.com (and most aggregators)
-refuse non-browser clients, and this project does not disguise itself to get
-past that. Refreshing is manual: update the rows and the `source-as-of` time in
-`live/race.html`, restart, and the store dedupes unchanged content or publishes
-a new immutable version. The page labels itself stale once the data is older
-than `RTT_STALE_AFTER_SECS` (default one day, matching the manual cadence).
+Why not the ATP directly: `atptour.com` refuses automated clients, and this
+project does not disguise itself or bypass access controls to get around that.
+tennisexplorer was evaluated and rejected — its terms (§2.11) explicitly forbid
+scraping and aggregating. Wikipedia is also simply the better source: it carries
+a per-tournament points ledger and a citation for every announced qualification.
 
-| Env var | Default |
-|---|---|
-| `RTT_FIXTURE` | `live/race.html` |
-| `RTT_CURATED` | `live/curated.toml` |
-| `RTT_DB` | `data/racetoturin.db` (`/data/…` in Docker) |
-| `RTT_BIND` | `127.0.0.1:8080` (`0.0.0.0:8080` in Docker) |
-| `RTT_STALE_AFTER_SECS` | `86400` |
+Two consequences, both deliberate:
 
-Routes: `/` (the product), `/methodology`, `/health/ready`, `/static/app.css`.
+- **This is weekly data, not live.** Wikipedia states the date its standings are
+  current to, and the page shows exactly that date. Past `RTT_STALE_AFTER_SECS`
+  it labels itself stale rather than implying freshness it doesn't have.
+- **No "next points" / "max this week" columns.** Only the ATP publishes
+  in-tournament projections. A column of permanent blanks is worse than none.
+
+Rank movement is derived by diffing our own consecutive stored snapshots, not
+taken from any source.
+
+| Env var | Default | Meaning |
+|---|---|---|
+| `RTT_WIKI_PAGE` | `2026_ATP_Finals` | Source article (season rollover is config) |
+| `RTT_FETCH` | `1` | `0` = kill switch: zero outbound requests, serve stored |
+| `RTT_FIXTURE` | *unset* | Parse a local file instead of fetching |
+| `RTT_POLL_SECS` | `21600` | Refresh cadence (6h; the source is weekly) |
+| `RTT_STALE_AFTER_SECS` | `864000` | ~10 days |
+| `RTT_CURATED` | `live/curated.toml` | Grand Slam champions + withdrawals |
+| `RTT_DB` | `data/racetoturin.db` | SQLite file (`/data/…` in Docker) |
+| `RTT_BIND` | `127.0.0.1:8080` | Listen address (`0.0.0.0:8080` in Docker) |
+
+Routes: `/`, `/methodology`, `/health/ready`, `/static/app.css`.
 
 ## Test
 
 ```sh
-cargo test
+cargo test                          # offline: fixture-driven
+cargo test -- --ignored             # also hits Wikipedia once
 ```
 
-The synthetic pages under `fixtures/` exist only for tests: they exercise both
-qualification branches deterministically (Grand Slam champion provision and
-ordinary 8/9 cutoff), ties, withdrawals, idle players, accents, and every
-parser rejection path. A dedicated test also guards that the committed `live/`
-data parses, validates, and renders.
+Parser tests run against **real trimmed wikitext** in `fixtures/`, covering the
+`Alternates` separator row, neutral-status players (`{{flagicon|}}` → no
+country), disambiguated article titles, and the stated as-of date; plus rejection
+paths (missing table, missing as-of, truncated table, duplicate players,
+non-monotonic points, garbage input never panics). Also: qualifier ingestion with
+source URLs, both qualification branches, derived movement across two snapshots,
+storage dedup/versioning, and HTTP rendering.
 
 ## Design notes
 
-- Identity is the ATP player code from profile links; names are display data.
-- A candidate that fails validation is rejected wholesale — it can never
-  replace the last verified snapshot.
-- Unavailable values (next/max/movement not shown by the source) render as
-  unavailable with a reason, never as estimates.
-- The database is written once at startup and never sits on the request path.
+- Identity is the Wikipedia article title; display names strip disambiguators.
+- A candidate failing validation is rejected wholesale — it can never replace the
+  stored snapshot, so a bad edit upstream cannot corrupt the served page.
+- Official status is never inferred from points; it arrives with its citation.
+- The database is written by the worker and never sits on the request path;
+  handlers read an `ArcSwap` snapshot.
+- Back up `/data` (e.g. Litestream) and put a CDN in front for deployment.

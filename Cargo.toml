@@ -2,20 +2,21 @@
 name = "racetoturin"
 version = "0.1.0"
 edition = "2021"
-description = "Local MVP of racetotur.in — ATP Race to Turin qualification table, served from a local HTML fixture with zero network egress"
+description = "ATP Race to Turin qualification table — Wikipedia-sourced, SQLite snapshots, server-rendered HTML"
 license = "MIT"
 
 [dependencies]
 anyhow = "1"
+arc-swap = "1"
 askama = "0.14"
 axum = "0.8"
-scraper = "0.23"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-webpki-roots", "gzip"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "migrate"] }
 time = { version = "0.3", features = ["formatting", "parsing", "macros"] }
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "net"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "time"] }
 toml = "0.8"
 
 [dev-dependencies]

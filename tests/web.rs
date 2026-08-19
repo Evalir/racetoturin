@@ -1,28 +1,34 @@
-use std::{path::Path, sync::Arc, time::Duration};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
+use arc_swap::ArcSwap;
 use axum::{
     body::Body,
     http::{Request, StatusCode},
     Router,
 };
 use http_body_util::BodyExt;
+use racetoturin::{storage::Store, Config};
 use tower::ServiceExt;
 
-async fn app_with(fixture: &str, curated: &str) -> Router {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let loaded = racetoturin::ingest_and_load(
-        &root.join(fixture),
-        &root.join(curated),
-        Duration::from_secs(900),
-        racetoturin::storage::MEMORY,
-    )
-    .await
-    .expect("state must load from checked-in files");
-    racetoturin::web::router(Arc::new(loaded.state))
+fn root(rel: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(rel)
 }
 
+/// Builds the app the way `main` does, but from the checked-in fixture with
+/// collection disabled — the whole suite runs offline.
 async fn app(curated: &str) -> Router {
-    app_with("fixtures/race.html", curated).await
+    let config = Config {
+        wiki_page: "2026_ATP_Finals".to_string(),
+        fixture: Some(root("fixtures/race.wikitext")),
+        fetch_enabled: false,
+        curated: root(curated),
+        db: racetoturin::storage::MEMORY.to_string(),
+        stale_after: Duration::from_secs(864_000),
+        poll: Duration::from_secs(21_600),
+    };
+    let store = Store::open(&config.db).await.unwrap();
+    let state = racetoturin::ingest(&config, &store).await.unwrap();
+    racetoturin::web::router(Arc::new(ArcSwap::from_pointee(state)))
 }
 
 async fn get_body(app: Router, uri: &str) -> (StatusCode, String) {
@@ -36,71 +42,63 @@ async fn get_body(app: Router, uri: &str) -> (StatusCode, String) {
 }
 
 #[tokio::test]
-async fn homepage_renders_slam_champion_branch() {
-    let (status, body) = get_body(app("fixtures/curated.toml").await, "/").await;
+async fn homepage_shows_the_real_ordinary_cutoff() {
+    let (status, body) = get_body(app("live/curated.toml").await, "/").await;
     assert_eq!(status, StatusCode::OK);
-    // Qualification summary and the highlighted slam pick.
-    assert!(body.contains("Novak Djokovic — Grand Slam champion provision"));
-    assert!(body.contains("slam-pick"));
-    assert!(body.contains("First alternate"));
-    assert!(body.contains("Alex de Minaur"));
-    // No contiguous 8/9 line in this branch, and margins are suppressed.
-    assert!(!body.contains("Provisional qualification line"));
-    // Strong boundary after the top seven is always drawn.
-    assert!(body.contains("Top seven — qualify directly on race rank"));
-    // Official status comes from the curated file, not points.
-    assert!(body.contains("Official"));
-    // Unofficial labelling, the config's data notice, and provenance are visible.
-    assert!(body.contains("Independent and unofficial"));
-    assert!(body.contains("fictional sample data"));
-    assert!(body.contains("source age"));
-    assert!(body.contains("parser fixture-html-1"));
-    assert!(body.contains("snapshot v1"));
-}
-
-#[tokio::test]
-async fn homepage_renders_ordinary_cutoff_branch() {
-    let (status, body) = get_body(app("fixtures/curated_ordinary.toml").await, "/").await;
-    assert_eq!(status, StatusCode::OK);
-    assert!(body.contains("Alex de Minaur — by race rank"));
+    // 2026's slam champions are all top-3, so seat 8 falls to race rank.
+    assert!(body.contains("Novak Djokovic — by race rank"));
     assert!(body.contains("Provisional qualification line"));
-    // de Minaur (3310) cushion over Djokovic (3180) = +130; chasers show deficits.
-    assert!(body.contains("+130"));
-    assert!(body.contains("-130"));
+    assert!(body.contains("Top seven — qualify directly on race rank"));
     assert!(!body.contains("slam-pick"));
+    // Djokovic 2,320 over Auger-Aliassime 2,315 is a 5-point cushion.
+    assert!(body.contains("+5"));
+    assert!(body.contains("-5"));
+    // Ingested official qualifications, with dates.
+    assert!(body.contains("Jannik Sinner (2026-07-10)"));
+    assert!(body.contains("Alexander Zverev (2026-08-06)"));
+    assert!(body.contains("Official"));
+    // Freshness is stated as the source's own date and never claims "live".
+    assert!(body.contains("official weekly"));
+    assert!(body.contains("16 August 2026"));
+    assert!(!body.to_lowercase().contains("scraped live"));
+    // Attribution is required by CC BY-SA.
+    assert!(body.contains("Wikipedia"));
+    assert!(body.contains("CC BY-SA"));
 }
 
 #[tokio::test]
-async fn idle_players_show_reason_not_estimates() {
-    let (_, body) = get_body(app("fixtures/curated.toml").await, "/").await;
-    assert!(body.contains("Not entered"));
-    assert!(body.contains("Unavailable: Eliminated R32"));
+async fn slam_champion_branch_still_renders() {
+    let (status, body) = get_body(app("fixtures/curated_slam_branch.toml").await, "/").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("Grand Slam champion provision"));
+    assert!(body.contains("slam-pick"));
+    // No contiguous line exists in this branch, so margins are suppressed.
+    assert!(!body.contains("Provisional qualification line"));
+}
+
+#[tokio::test]
+async fn dropped_columns_are_gone() {
+    let (_, body) = get_body(app("live/curated.toml").await, "/").await;
+    for absent in ["Max", "Total after one more win", "Tournament"] {
+        assert!(!body.contains(absent), "{absent} should no longer render");
+    }
 }
 
 #[tokio::test]
 async fn methodology_and_health_endpoints_work() {
-    let (status, body) = get_body(app("fixtures/curated.toml").await, "/methodology").await;
+    let (status, body) = get_body(app("live/curated.toml").await, "/methodology").await;
     assert_eq!(status, StatusCode::OK);
-    assert!(body.contains("zero network requests"));
+    assert!(body.contains("CC BY-SA"));
+    assert!(body.contains("2026_ATP_Finals") || body.contains("2026 ATP Finals"));
 
-    let (status, body) = get_body(app("fixtures/curated.toml").await, "/health/ready").await;
+    let (status, body) = get_body(app("live/curated.toml").await, "/health/ready").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body, "ready\n");
 }
 
-// The committed default data: it must parse, validate, and render.
-#[tokio::test]
-async fn live_data_serves_by_default() {
-    let app = app_with("live/race.html", "live/curated.toml").await;
-    let (status, body) = get_body(app, "/").await;
-    assert_eq!(status, StatusCode::OK);
-    assert!(body.contains("perfect-tennis.com"));
-    assert!(!body.contains("fictional sample data"));
-}
-
 #[tokio::test]
 async fn css_is_served() {
-    let (status, body) = get_body(app("fixtures/curated.toml").await, "/static/app.css").await;
+    let (status, body) = get_body(app("live/curated.toml").await, "/static/app.css").await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("cutline"));
 }
