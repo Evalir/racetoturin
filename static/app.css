@@ -55,6 +55,9 @@ footer.site {
   padding: 0.5rem 0.75rem; margin: 1rem 0; font-size: 0.85rem;
 }
 .freshness p { margin: 0.15rem 0; }
+/* The source URL is one long unbreakable token; without this it forces the
+   whole page wider than a phone viewport. */
+.provenance { overflow-wrap: anywhere; }
 .freshness.stale { border-color: var(--red); }
 .freshness.stale .badge.acc { background: var(--red); color: var(--black); }
 .stale-note { color: var(--red); text-transform: uppercase; }
@@ -119,7 +122,8 @@ tr.cutline.strong td { border-bottom-style: solid; }
 }
 
 @media (max-width: 700px) {
-  .col-x { display: none; }
   main { padding: 0 0.5rem 2rem; }
   table.race { font-size: 0.85rem; }
+  /* Status badges stack rather than widening the row. */
+  td.status .badge { display: block; margin: 0.1rem 0; }
 }

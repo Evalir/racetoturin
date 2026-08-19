@@ -25,6 +25,7 @@ async fn app(curated: &str) -> Router {
         db: racetoturin::storage::MEMORY.to_string(),
         stale_after: Duration::from_secs(864_000),
         poll: Duration::from_secs(21_600),
+        base_url: "https://racetotur.in".to_string(),
     };
     let store = Store::open(&config.db).await.unwrap();
     let state = racetoturin::ingest(&config, &store).await.unwrap();
@@ -119,6 +120,26 @@ async fn pages_are_cacheable_and_declare_their_snapshot() {
         headers.get("x-snapshot-version").unwrap().to_str().unwrap(),
         "1"
     );
+}
+
+/// A shared link should carry the actual news, not a bare URL.
+#[tokio::test]
+async fn shared_link_preview_and_discovery_tags_are_present() {
+    let (_, body) = get_body(app("live/curated.toml").await, "/").await;
+    assert!(body.contains("og:title"));
+    assert!(body.contains("og:url"));
+    assert!(body.contains("twitter:card"));
+    assert!(body.contains("rel=\"canonical\""));
+    assert!(body.contains("https://racetotur.in"));
+    assert!(body.contains("rel=\"icon\""));
+    // The description names who holds the last seat and who is closest out.
+    assert!(body.contains("Seat 8: Novak Djokovic."));
+    assert!(body.contains("First alternate: Félix Auger-Aliassime."));
+
+    let (status, robots) = get_body(app("live/curated.toml").await, "/robots.txt").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(robots.contains("Allow: /"));
+    assert!(robots.contains("Disallow: /health/"));
 }
 
 #[tokio::test]

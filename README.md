@@ -52,8 +52,14 @@ taken from any source.
 | `RTT_CURATED` | `live/curated.toml` | Grand Slam champions + withdrawals |
 | `RTT_DB` | `data/racetoturin.db` | SQLite file (`/data/…` in Docker) |
 | `RTT_BIND` | `127.0.0.1:8080` | Listen address (`0.0.0.0:8080` in Docker) |
+| `RTT_BASE_URL` | `https://racetotur.in` | Origin for canonical and `og:` URLs |
 
-Routes: `/`, `/methodology`, `/health/ready`, `/static/app.css`.
+Routes: `/`, `/methodology`, `/robots.txt`, `/health/ready`, `/static/app.css`.
+
+Responses are gzipped (13.8 KB → 2.4 KB) and carry
+`Cache-Control: max-age=120, stale-while-revalidate=600` plus an
+`X-Snapshot-Version` header. Shared links (Reddit, Discord, Slack) get an `og:`
+preview naming who holds seat 8 and who is first alternate.
 
 ## Test
 

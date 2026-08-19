@@ -22,6 +22,8 @@ pub struct Config {
     pub db: String,
     pub stale_after: Duration,
     pub poll: Duration,
+    /// Public origin, for canonical and shared-link metadata.
+    pub base_url: String,
 }
 
 impl Config {
@@ -105,6 +107,7 @@ pub async fn ingest(config: &Config, store: &storage::Store) -> Result<web::AppS
         curated,
         selection,
         stale_after: config.stale_after,
+        base_url: config.base_url.trim_end_matches('/').to_string(),
     })
 }
 

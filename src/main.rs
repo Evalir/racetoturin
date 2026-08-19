@@ -26,6 +26,7 @@ async fn main() -> Result<()> {
         db: env_or("RTT_DB", "data/racetoturin.db"),
         stale_after: secs("RTT_STALE_AFTER_SECS", "864000")?, // ~10 days
         poll: secs("RTT_POLL_SECS", "21600")?,                // 6 h
+        base_url: env_or("RTT_BASE_URL", "https://racetotur.in"),
     });
     let bind = env_or("RTT_BIND", "127.0.0.1:8080");
 

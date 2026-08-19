@@ -25,6 +25,8 @@ pub struct AppState {
     pub curated: Curated,
     pub selection: Selection,
     pub stale_after: Duration,
+    /// Public origin, used for canonical and shared-link metadata.
+    pub base_url: String,
 }
 
 /// Handlers read a snapshot of the state; the worker swaps in a new one
@@ -36,6 +38,7 @@ pub fn router(state: SharedState) -> Router {
         .route("/", get(index))
         .route("/methodology", get(methodology))
         .route("/health/ready", get(health_ready))
+        .route("/robots.txt", get(robots))
         .route("/static/app.css", get(app_css))
         // Compression matters more than it looks: the page is mostly repeated
         // markup, so it shrinks ~4x, which is the whole egress bill under load.
@@ -97,6 +100,9 @@ struct RowView {
 #[template(path = "index.html")]
 struct IndexPage {
     season: u16,
+    canonical: String,
+    /// Doubles as meta description and shared-link preview text.
+    summary_text: String,
     fresh: FreshView,
     summary: SummaryView,
     rows: Vec<RowView>,
@@ -107,6 +113,8 @@ struct IndexPage {
 #[template(path = "methodology.html")]
 struct MethodologyPage {
     season: u16,
+    canonical: String,
+    summary_text: String,
     notice: String,
     ruleset: String,
     parser_version: String,
@@ -360,6 +368,32 @@ fn build_rows(state: &AppState) -> Vec<RowView> {
 // Handlers
 // ---------------------------------------------------------------------------
 
+/// One sentence naming who is in and who is closest out — the text someone sees
+/// when the link is shared, so it should carry the actual news.
+fn shared_link_text(state: &AppState, summary: &SummaryView) -> String {
+    let cut = state
+        .selection
+        .eighth_code
+        .as_deref()
+        .map(|code| {
+            state
+                .snapshot
+                .rows
+                .iter()
+                .find(|r| r.player_code == code)
+                .map(|r| r.player_name.clone())
+                .unwrap_or_else(|| code.to_string())
+        })
+        .unwrap_or_else(|| "—".to_string());
+    format!(
+        "Who would qualify for the {season} ATP Finals in Turin if selection happened now. \
+         Seat 8: {cut}. First alternate: {alt}. Standings as of {as_of}.",
+        season = state.curated.season,
+        alt = summary.alternate,
+        as_of = fmt_day(state.snapshot.source_as_of),
+    )
+}
+
 fn render<T: Template>(template: &T, cache_control: &'static str, version: i64) -> Response {
     match template.render() {
         Ok(body) => (
@@ -385,10 +419,13 @@ fn render<T: Template>(template: &T, cache_control: &'static str, version: i64) 
 
 async fn index(State(shared): State<SharedState>) -> Response {
     let state = shared.load();
+    let summary = build_summary(&state);
     let page = IndexPage {
         season: state.curated.season,
+        canonical: state.base_url.clone(),
+        summary_text: shared_link_text(&state, &summary),
         fresh: build_fresh(&state, OffsetDateTime::now_utc()),
-        summary: build_summary(&state),
+        summary,
         rows: build_rows(&state),
         slam_provision_active: state.selection.eighth_basis == SeatBasis::GrandSlamChampion,
     };
@@ -399,6 +436,10 @@ async fn methodology(State(shared): State<SharedState>) -> Response {
     let state = shared.load();
     let page = MethodologyPage {
         season: state.curated.season,
+        canonical: format!("{}/methodology", state.base_url),
+        summary_text: "Where racetotur.in's standings come from, how the Turin \
+                       qualification rule is applied, and what the freshness labels mean."
+            .to_string(),
         notice: state.curated.notice.clone(),
         ruleset: state.curated.ruleset.clone(),
         parser_version: state.snapshot.parser_version.clone(),
@@ -411,6 +452,16 @@ async fn methodology(State(shared): State<SharedState>) -> Response {
 // always ready to serve.
 async fn health_ready() -> &'static str {
     "ready\n"
+}
+
+async fn robots() -> impl IntoResponse {
+    (
+        [
+            (header::CONTENT_TYPE, "text/plain; charset=utf-8"),
+            (header::CACHE_CONTROL, CACHE_STATIC),
+        ],
+        "User-agent: *\nAllow: /\nDisallow: /health/\n",
+    )
 }
 
 async fn app_css() -> impl IntoResponse {

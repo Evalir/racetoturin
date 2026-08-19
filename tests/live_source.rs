@@ -16,6 +16,7 @@ async fn live_wikipedia_article_parses_and_validates() {
         db: MEMORY.to_string(),
         stale_after: Duration::from_secs(864_000),
         poll: Duration::from_secs(21_600),
+        base_url: "https://racetotur.in".to_string(),
     };
     let store = racetoturin::storage::Store::open(&config.db).await.unwrap();
     let state = racetoturin::ingest(&config, &store)

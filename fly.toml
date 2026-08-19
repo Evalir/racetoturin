@@ -7,6 +7,8 @@ primary_region = "ams"          # change to whichever region you prefer
 [env]
   RTT_BIND = "0.0.0.0:8080"
   RTT_DB = "/data/racetoturin.db"
+  # Used for canonical and shared-link (og:) URLs.
+  RTT_BASE_URL = "https://racetotur.in"
   # ~10 days. Tighten to ~3 days (259200) for the October/November run-in,
   # when a stale table actively misleads.
   RTT_STALE_AFTER_SECS = "864000"
