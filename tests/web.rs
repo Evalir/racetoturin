@@ -178,3 +178,32 @@ async fn css_is_served() {
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("cutline"));
 }
+
+/// Markup and styles ship together, so a stale cached stylesheet renders new
+/// markup wrong. The URL must carry a content hash that changes with the file.
+#[tokio::test]
+async fn stylesheet_url_is_content_addressed() {
+    let (_, body) = get_body(app("live/curated.toml").await, "/").await;
+    let version = racetoturin::web::css_version();
+    assert_eq!(version.len(), 12, "expected a 12-char hash, got {version:?}");
+    assert!(
+        body.contains(&format!("/static/app.css?v={version}")),
+        "stylesheet link is not content-addressed"
+    );
+
+    let response = app("live/curated.toml")
+        .await
+        .oneshot(
+            Request::get("/static/app.css")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let cache = response
+        .headers()
+        .get("cache-control")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or_default();
+    assert!(cache.contains("immutable"), "expected immutable: {cache:?}");
+}

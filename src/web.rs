@@ -53,6 +53,22 @@ pub fn router(state: SharedState) -> Router {
 const CACHE_PAGE: &str = "public, max-age=120, stale-while-revalidate=600";
 /// The methodology page only changes when the code does.
 const CACHE_STATIC: &str = "public, max-age=3600";
+/// Safe to cache forever because the URL carries a content hash: a changed
+/// stylesheet is a different URL.
+const CACHE_IMMUTABLE: &str = "public, max-age=31536000, immutable";
+
+const APP_CSS: &str = include_str!("../static/app.css");
+
+/// Content hash of the stylesheet, used to bust its cache. Markup and styles
+/// ship together, so a cached-but-stale stylesheet renders new markup wrong —
+/// versioning the URL makes that impossible.
+pub fn css_version() -> &'static str {
+    static VERSION: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    VERSION.get_or_init(|| {
+        let digest = <sha2::Sha256 as sha2::Digest>::digest(APP_CSS.as_bytes());
+        format!("{digest:x}")[..12].to_string()
+    })
+}
 
 // ---------------------------------------------------------------------------
 // View models: templates stay dumb; every displayed string is computed here.
@@ -109,6 +125,7 @@ struct RowView {
 #[template(path = "index.html")]
 struct IndexPage {
     season: u16,
+    css_version: &'static str,
     canonical: String,
     /// Doubles as meta description and shared-link preview text.
     summary_text: String,
@@ -122,6 +139,7 @@ struct IndexPage {
 #[template(path = "methodology.html")]
 struct MethodologyPage {
     season: u16,
+    css_version: &'static str,
     canonical: String,
     summary_text: String,
     notice: String,
@@ -436,6 +454,7 @@ async fn index(State(shared): State<SharedState>) -> Response {
     let summary = build_summary(&state);
     let page = IndexPage {
         season: state.curated.season,
+        css_version: css_version(),
         canonical: state.base_url.clone(),
         summary_text: shared_link_text(&state, &summary),
         fresh: build_fresh(&state, OffsetDateTime::now_utc()),
@@ -450,6 +469,7 @@ async fn methodology(State(shared): State<SharedState>) -> Response {
     let state = shared.load();
     let page = MethodologyPage {
         season: state.curated.season,
+        css_version: css_version(),
         canonical: format!("{}/methodology", state.base_url),
         summary_text: "Where racetotur.in's standings come from, how the Turin \
                        qualification rule is applied, and what the freshness labels mean."
@@ -501,8 +521,8 @@ async fn app_css() -> impl IntoResponse {
     (
         [
             (header::CONTENT_TYPE, "text/css; charset=utf-8"),
-            (header::CACHE_CONTROL, "public, max-age=3600"),
+            (header::CACHE_CONTROL, CACHE_IMMUTABLE),
         ],
-        include_str!("../static/app.css"),
+        APP_CSS,
     )
 }
