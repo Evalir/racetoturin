@@ -8,12 +8,14 @@ fn env_or(key: &str, default: &str) -> String {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let fixture = PathBuf::from(env_or("RTT_FIXTURE", "fixtures/race.html"));
-    let curated = PathBuf::from(env_or("RTT_CURATED", "config/curated.toml"));
+    let fixture = PathBuf::from(env_or("RTT_FIXTURE", "live/race.html"));
+    let curated = PathBuf::from(env_or("RTT_CURATED", "live/curated.toml"));
     let db = env_or("RTT_DB", "data/racetoturin.db");
     let bind = env_or("RTT_BIND", "127.0.0.1:8080");
+    // The live data is refreshed manually, so a day is the honest
+    // staleness threshold; tighten it when an automated source exists.
     let stale_after = Duration::from_secs(
-        env_or("RTT_STALE_AFTER_SECS", "900")
+        env_or("RTT_STALE_AFTER_SECS", "86400")
             .parse()
             .context("RTT_STALE_AFTER_SECS must be an integer number of seconds")?,
     );

@@ -8,17 +8,21 @@ use axum::{
 use http_body_util::BodyExt;
 use tower::ServiceExt;
 
-async fn app(curated_file: &str) -> Router {
+async fn app_with(fixture: &str, curated: &str) -> Router {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let loaded = racetoturin::ingest_and_load(
-        &root.join("fixtures/race.html"),
-        &root.join(curated_file),
+        &root.join(fixture),
+        &root.join(curated),
         Duration::from_secs(900),
         racetoturin::storage::MEMORY,
     )
     .await
-    .expect("state must load from checked-in fixtures");
+    .expect("state must load from checked-in files");
     racetoturin::web::router(Arc::new(loaded.state))
+}
+
+async fn app(curated: &str) -> Router {
+    app_with("fixtures/race.html", curated).await
 }
 
 async fn get_body(app: Router, uri: &str) -> (StatusCode, String) {
@@ -33,7 +37,7 @@ async fn get_body(app: Router, uri: &str) -> (StatusCode, String) {
 
 #[tokio::test]
 async fn homepage_renders_slam_champion_branch() {
-    let (status, body) = get_body(app("config/curated.toml").await, "/").await;
+    let (status, body) = get_body(app("fixtures/curated.toml").await, "/").await;
     assert_eq!(status, StatusCode::OK);
     // Qualification summary and the highlighted slam pick.
     assert!(body.contains("Novak Djokovic — Grand Slam champion provision"));
@@ -56,7 +60,7 @@ async fn homepage_renders_slam_champion_branch() {
 
 #[tokio::test]
 async fn homepage_renders_ordinary_cutoff_branch() {
-    let (status, body) = get_body(app("config/curated_ordinary.toml").await, "/").await;
+    let (status, body) = get_body(app("fixtures/curated_ordinary.toml").await, "/").await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("Alex de Minaur — by race rank"));
     assert!(body.contains("Provisional qualification line"));
@@ -68,25 +72,35 @@ async fn homepage_renders_ordinary_cutoff_branch() {
 
 #[tokio::test]
 async fn idle_players_show_reason_not_estimates() {
-    let (_, body) = get_body(app("config/curated.toml").await, "/").await;
+    let (_, body) = get_body(app("fixtures/curated.toml").await, "/").await;
     assert!(body.contains("Not entered"));
     assert!(body.contains("Unavailable: Eliminated R32"));
 }
 
 #[tokio::test]
 async fn methodology_and_health_endpoints_work() {
-    let (status, body) = get_body(app("config/curated.toml").await, "/methodology").await;
+    let (status, body) = get_body(app("fixtures/curated.toml").await, "/methodology").await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("zero network requests"));
 
-    let (status, body) = get_body(app("config/curated.toml").await, "/health/ready").await;
+    let (status, body) = get_body(app("fixtures/curated.toml").await, "/health/ready").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body, "ready\n");
 }
 
+// The committed default data: it must parse, validate, and render.
+#[tokio::test]
+async fn live_data_serves_by_default() {
+    let app = app_with("live/race.html", "live/curated.toml").await;
+    let (status, body) = get_body(app, "/").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains("perfect-tennis.com"));
+    assert!(!body.contains("fictional sample data"));
+}
+
 #[tokio::test]
 async fn css_is_served() {
-    let (status, body) = get_body(app("config/curated.toml").await, "/static/app.css").await;
+    let (status, body) = get_body(app("fixtures/curated.toml").await, "/static/app.css").await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("cutline"));
 }

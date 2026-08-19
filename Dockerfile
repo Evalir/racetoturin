@@ -12,8 +12,7 @@ FROM debian:bookworm-slim
 RUN useradd --system --uid 10001 app && mkdir /data && chown app /data
 WORKDIR /app
 COPY --from=builder /src/target/release/racetoturin /usr/local/bin/racetoturin
-COPY fixtures ./fixtures
-COPY config ./config
+COPY live ./live
 ENV RTT_BIND=0.0.0.0:8080 RTT_DB=/data/racetoturin.db
 EXPOSE 8080
 USER app

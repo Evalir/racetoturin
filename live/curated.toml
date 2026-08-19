@@ -1,0 +1,25 @@
+# Curated official facts for the 2026 season. Officially announced
+# status lives here because it must never be inferred from points.
+# Unknown keys are rejected at load, so typos fail loudly.
+#
+# US Open 2026 has not been played yet. No official Turin qualifiers
+# have been announced as of 19 August 2026.
+
+season = 2026
+ruleset = "atp-singles-2026.1"
+notice = "Standings as displayed by perfect-tennis.com, checked 19 August 2026 (community source; the ATP page refuses automated clients). Movement, rounds, next and max points were not displayed by that source."
+
+[[slam_champions]]
+code = "a0e2"
+name = "Carlos Alcaraz"
+source = "2026 Australian Open — https://www.olympics.com/en/news/australian-open-2026-mens-singles-final-carlos-alcaraz-novak-djokovic-live-updates"
+
+[[slam_champions]]
+code = "z355"
+name = "Alexander Zverev"
+source = "2026 Roland Garros — https://www.olympics.com/en/news/french-open-2026-mens-singles-final-alexander-zverev-flavio-cobolli-live-updates-results"
+
+[[slam_champions]]
+code = "s0ag"
+name = "Jannik Sinner"
+source = "2026 Wimbledon (title defence) — press coverage checked 19 Aug 2026"
