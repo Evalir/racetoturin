@@ -21,10 +21,8 @@ pub struct Curated {
 pub struct CuratedPlayer {
     /// ATP player code — the identity key, matching parsed rows.
     pub code: String,
-    /// Display name for provenance/review only.
+    /// Display name; identity always goes through the code.
     pub name: String,
-    #[serde(default)]
-    pub source: Option<String>,
 }
 
 impl Curated {

@@ -1,19 +1,15 @@
 use std::collections::{HashMap, HashSet};
 
-use serde::Serialize;
-
 use crate::curated::Curated;
 use crate::model::RaceRow;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SeatBasis {
     RaceRank,
     GrandSlamChampion,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Provisional {
     TopSeven,
     EighthByRank,
@@ -176,7 +172,6 @@ mod tests {
         let player = |code: &&str| CuratedPlayer {
             code: code.to_string(),
             name: code.to_string(),
-            source: None,
         };
         Curated {
             season: 2026,
@@ -231,12 +226,9 @@ mod tests {
 
     #[test]
     fn champion_ranked_below_20_is_not_eligible() {
-        let mut rows = table();
-        rows.push(row(13, "p013", 3000));
-        let mut rows: Vec<RaceRow> = rows;
-        for (i, extra) in (14..=22).enumerate() {
-            rows.push(row(extra, &format!("p{extra:03}"), 2800 - i as u32 * 100));
-        }
+        let rows: Vec<RaceRow> = (1..=22)
+            .map(|i| row(i, &format!("p{i:03}"), 10_000 - i * 100))
+            .collect();
         let selection = select(&rows, &curated_with(&["p021"], &[]));
         assert_eq!(selection.eighth_basis, SeatBasis::RaceRank);
     }

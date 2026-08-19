@@ -190,7 +190,7 @@ pub fn parse(html: &str, source_label: &str) -> Result<Snapshot> {
         source_as_of,
         generated_at: OffsetDateTime::now_utc(),
         source: source_label.to_string(),
-        parser_version: PARSER_VERSION,
+        parser_version: PARSER_VERSION.to_string(),
         rows,
     };
     validate(&snapshot)?;

@@ -1,0 +1,12 @@
+services:
+  web:
+    build: .
+    image: ghcr.io/evalir/racetoturin:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - data:/data
+    restart: unless-stopped
+
+volumes:
+  data:

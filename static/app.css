@@ -133,6 +133,3 @@ tr.cutline.strong td { border-bottom-style: solid; border-bottom-width: 3px; }
   main { padding: 0 0.5rem 2rem; }
   table.race { font-size: 0.85rem; }
 }
-@media (prefers-reduced-motion: no-preference) {
-  a { transition: color 120ms ease; }
-}

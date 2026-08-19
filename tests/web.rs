@@ -8,15 +8,17 @@ use axum::{
 use http_body_util::BodyExt;
 use tower::ServiceExt;
 
-fn app(curated_file: &str) -> Router {
+async fn app(curated_file: &str) -> Router {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let state = racetoturin::load_state(
+    let loaded = racetoturin::ingest_and_load(
         &root.join("fixtures/race.html"),
         &root.join(curated_file),
         Duration::from_secs(900),
+        racetoturin::storage::MEMORY,
     )
+    .await
     .expect("state must load from checked-in fixtures");
-    racetoturin::web::router(Arc::new(state))
+    racetoturin::web::router(Arc::new(loaded.state))
 }
 
 async fn get_body(app: Router, uri: &str) -> (StatusCode, String) {
@@ -31,7 +33,7 @@ async fn get_body(app: Router, uri: &str) -> (StatusCode, String) {
 
 #[tokio::test]
 async fn homepage_renders_slam_champion_branch() {
-    let (status, body) = get_body(app("config/curated.toml"), "/").await;
+    let (status, body) = get_body(app("config/curated.toml").await, "/").await;
     assert_eq!(status, StatusCode::OK);
     // Qualification summary and the highlighted slam pick.
     assert!(body.contains("Novak Djokovic — Grand Slam champion provision"));
@@ -44,15 +46,16 @@ async fn homepage_renders_slam_champion_branch() {
     assert!(body.contains("Top seven — qualify directly on race rank"));
     // Official status comes from the curated file, not points.
     assert!(body.contains("Official"));
-    // Unofficial labelling and freshness metadata are visible.
+    // Unofficial labelling and provenance are visible.
     assert!(body.contains("Independent and unofficial"));
     assert!(body.contains("source age"));
     assert!(body.contains("parser fixture-html-1"));
+    assert!(body.contains("snapshot v1"));
 }
 
 #[tokio::test]
 async fn homepage_renders_ordinary_cutoff_branch() {
-    let (status, body) = get_body(app("config/curated_ordinary.toml"), "/").await;
+    let (status, body) = get_body(app("config/curated_ordinary.toml").await, "/").await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("Alex de Minaur — by race rank"));
     assert!(body.contains("Provisional qualification line"));
@@ -63,42 +66,26 @@ async fn homepage_renders_ordinary_cutoff_branch() {
 }
 
 #[tokio::test]
-async fn race_limit_is_clamped() {
-    let (status, body) = get_body(app("config/curated.toml"), "/race?limit=3").await;
-    assert_eq!(status, StatusCode::OK);
-    // Clamped up to the minimum of 8 rows.
-    assert!(body.contains("top 8 of 20"));
-
-    let (status, body) = get_body(app("config/curated.toml"), "/race?limit=50").await;
-    assert_eq!(status, StatusCode::OK);
-    assert!(body.contains("top 20 of 20"));
-}
-
-#[tokio::test]
 async fn idle_players_show_reason_not_estimates() {
-    let (_, body) = get_body(app("config/curated.toml"), "/").await;
+    let (_, body) = get_body(app("config/curated.toml").await, "/").await;
     assert!(body.contains("Not entered"));
     assert!(body.contains("Unavailable: Eliminated R32"));
 }
 
 #[tokio::test]
 async fn methodology_and_health_endpoints_work() {
-    let (status, body) = get_body(app("config/curated.toml"), "/methodology").await;
+    let (status, body) = get_body(app("config/curated.toml").await, "/methodology").await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("zero network requests"));
 
-    let (status, body) = get_body(app("config/curated.toml"), "/health/live").await;
-    assert_eq!(status, StatusCode::OK);
-    assert_eq!(body, "ok\n");
-
-    let (status, body) = get_body(app("config/curated.toml"), "/health/ready").await;
+    let (status, body) = get_body(app("config/curated.toml").await, "/health/ready").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body, "ready\n");
 }
 
 #[tokio::test]
 async fn css_is_served() {
-    let (status, body) = get_body(app("config/curated.toml"), "/static/app.css").await;
+    let (status, body) = get_body(app("config/curated.toml").await, "/static/app.css").await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.contains("cutline"));
 }

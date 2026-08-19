@@ -12,7 +12,7 @@
     · source age {{ fresh.age }}
     {% if fresh.is_stale %}<strong class="stale-note">Stale: showing the last verified snapshot.</strong>{% endif %}
   </p>
-  <p class="provenance">Source: {{ fresh.source }} · parser {{ fresh.parser_version }} · ruleset {{ fresh.ruleset }}</p>
+  <p class="provenance">Source: {{ fresh.source }} · parser {{ fresh.parser_version }} · ruleset {{ fresh.ruleset }} · snapshot v{{ fresh.version }}</p>
 </section>
 
 <section class="summary" aria-label="Qualification summary">
@@ -27,7 +27,7 @@
 </section>
 
 <section aria-label="Live race table">
-  <h2>Live race — top {{ shown }} of {{ total }}</h2>
+  <h2>Live race — top {{ total }}</h2>
   <div class="table-wrap">
     <table class="race">
       <thead>
@@ -69,7 +69,6 @@
       </tbody>
     </table>
   </div>
-  {% if more_available %}<p><a href="/race?limit=50">Show more of the table</a></p>{% endif %}
 </section>
 
 <details class="rules">

@@ -2,13 +2,12 @@ use std::{sync::Arc, time::Duration};
 
 use askama::Template;
 use axum::{
-    extract::{Query, State},
+    extract::State,
     http::{header, StatusCode},
     response::{Html, IntoResponse, Response},
     routing::get,
     Router,
 };
-use serde::Deserialize;
 use time::{macros::format_description, OffsetDateTime};
 
 use crate::{
@@ -19,6 +18,8 @@ use crate::{
 
 pub struct AppState {
     pub snapshot: Snapshot,
+    /// Monotonic published-snapshot version from the store.
+    pub version: i64,
     pub curated: Curated,
     pub selection: Selection,
     pub stale_after: Duration,
@@ -27,9 +28,7 @@ pub struct AppState {
 pub fn router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/", get(index))
-        .route("/race", get(index))
         .route("/methodology", get(methodology))
-        .route("/health/live", get(health_live))
         .route("/health/ready", get(health_ready))
         .route("/static/app.css", get(app_css))
         .with_state(state)
@@ -50,6 +49,7 @@ struct FreshView {
     source: String,
     parser_version: String,
     ruleset: String,
+    version: i64,
 }
 
 struct SummaryView {
@@ -90,9 +90,7 @@ struct IndexPage {
     fresh: FreshView,
     summary: SummaryView,
     rows: Vec<RowView>,
-    shown: usize,
     total: usize,
-    more_available: bool,
     slam_provision_active: bool,
 }
 
@@ -118,7 +116,8 @@ fn thousands(n: u32) -> String {
 }
 
 fn signed_thousands(n: i64) -> String {
-    let magnitude = thousands(n.unsigned_abs().min(u32::MAX as u64) as u32);
+    // Margins are differences of u32 point totals, so the cast is safe.
+    let magnitude = thousands(n.unsigned_abs() as u32);
     if n >= 0 {
         format!("+{magnitude}")
     } else {
@@ -167,8 +166,9 @@ fn build_fresh(state: &AppState, now: OffsetDateTime) -> FreshView {
         generated_human: fmt_human(state.snapshot.generated_at),
         age: humanize_age(age_secs),
         source: state.snapshot.source.clone(),
-        parser_version: state.snapshot.parser_version.to_string(),
+        parser_version: state.snapshot.parser_version.clone(),
         ruleset: state.curated.ruleset.clone(),
+        version: state.version,
     }
 }
 
@@ -195,21 +195,15 @@ fn build_summary(state: &AppState) -> SummaryView {
             .join(", ")
     };
 
-    let top_seven = {
-        let mut names: Vec<(u32, String)> = state
-            .snapshot
-            .rows
-            .iter()
-            .filter(|r| state.selection.state(&r.player_code) == Provisional::TopSeven)
-            .map(|r| (r.rank, r.player_name.clone()))
-            .collect();
-        names.sort_by_key(|(rank, _)| *rank);
-        names
-            .into_iter()
-            .map(|(_, n)| n)
-            .collect::<Vec<_>>()
-            .join(", ")
-    };
+    // Rows are already in rank order (validated), so filtering preserves it.
+    let top_seven = state
+        .snapshot
+        .rows
+        .iter()
+        .filter(|r| state.selection.state(&r.player_code) == Provisional::TopSeven)
+        .map(|r| r.player_name.clone())
+        .collect::<Vec<_>>()
+        .join(", ");
 
     let (eighth, basis_sentence) = match (&state.selection.eighth_code, state.selection.eighth_basis)
     {
@@ -255,7 +249,7 @@ fn build_summary(state: &AppState) -> SummaryView {
     }
 }
 
-fn build_rows(state: &AppState, shown: usize) -> Vec<RowView> {
+fn build_rows(state: &AppState) -> Vec<RowView> {
     let officials = state.curated.official_qualifier_codes();
     let slam_active = state.selection.eighth_basis == SeatBasis::GrandSlamChampion;
 
@@ -263,7 +257,6 @@ fn build_rows(state: &AppState, shown: usize) -> Vec<RowView> {
         .snapshot
         .rows
         .iter()
-        .take(shown)
         .map(|row| {
             let (movement, movement_class, movement_sr) = match row.movement {
                 Some(m) if m > 0 => (format!("▲{m}"), "up", format!("up {m} from last week")),
@@ -372,11 +365,6 @@ fn build_rows(state: &AppState, shown: usize) -> Vec<RowView> {
 // Handlers
 // ---------------------------------------------------------------------------
 
-#[derive(Deserialize)]
-struct RaceQuery {
-    limit: Option<usize>,
-}
-
 fn render<T: Template>(template: &T) -> Response {
     match template.render() {
         Ok(body) => Html(body).into_response(),
@@ -388,17 +376,13 @@ fn render<T: Template>(template: &T) -> Response {
     }
 }
 
-async fn index(State(state): State<Arc<AppState>>, Query(query): Query<RaceQuery>) -> Response {
-    let total = state.snapshot.rows.len();
-    let shown = query.limit.unwrap_or(30).clamp(8, 50).min(total);
+async fn index(State(state): State<Arc<AppState>>) -> Response {
     let page = IndexPage {
         season: state.curated.season,
         fresh: build_fresh(&state, OffsetDateTime::now_utc()),
         summary: build_summary(&state),
-        rows: build_rows(&state, shown),
-        shown,
-        total,
-        more_available: shown < total,
+        rows: build_rows(&state),
+        total: state.snapshot.rows.len(),
         slam_provision_active: state.selection.eighth_basis == SeatBasis::GrandSlamChampion,
     };
     render(&page)
@@ -408,22 +392,16 @@ async fn methodology(State(state): State<Arc<AppState>>) -> Response {
     let page = MethodologyPage {
         season: state.curated.season,
         ruleset: state.curated.ruleset.clone(),
-        parser_version: state.snapshot.parser_version.to_string(),
+        parser_version: state.snapshot.parser_version.clone(),
         source: state.snapshot.source.clone(),
     };
     render(&page)
 }
 
-async fn health_live() -> &'static str {
-    "ok\n"
-}
-
-async fn health_ready(State(state): State<Arc<AppState>>) -> Response {
-    if state.snapshot.rows.is_empty() {
-        (StatusCode::SERVICE_UNAVAILABLE, "no snapshot\n").into_response()
-    } else {
-        (StatusCode::OK, "ready\n").into_response()
-    }
+// Startup fails outright without a valid snapshot, so a running process is
+// always ready to serve.
+async fn health_ready() -> &'static str {
+    "ready\n"
 }
 
 async fn app_css() -> impl IntoResponse {

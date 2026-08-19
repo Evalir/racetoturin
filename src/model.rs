@@ -4,6 +4,8 @@ use time::OffsetDateTime;
 /// Bumped whenever row extraction changes; recorded on every snapshot.
 pub const PARSER_VERSION: &str = "fixture-html-1";
 
+// Rows derive Serialize because the store's content hash is computed over
+// their canonical JSON.
 #[derive(Debug, Clone, Serialize)]
 pub struct EventState {
     pub name: String,
@@ -34,14 +36,12 @@ pub struct RaceRow {
     pub unavailable_reason: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct Snapshot {
-    #[serde(with = "time::serde::rfc3339")]
     pub source_as_of: OffsetDateTime,
-    #[serde(with = "time::serde::rfc3339")]
     pub generated_at: OffsetDateTime,
     /// Where the rows came from — in the local build, the fixture path.
     pub source: String,
-    pub parser_version: &'static str,
+    pub parser_version: String,
     pub rows: Vec<RaceRow>,
 }
