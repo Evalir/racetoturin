@@ -23,9 +23,9 @@ structural rather than a setting:
   Wikipedia is polled once every 6h regardless of traffic, so viral traffic
   cannot turn into a thundering herd against the source.
 
-The realistic failure under a front-page spike is therefore *slowness*, not cost.
-Putting Cloudflare's free tier in front fixes that and drops egress to roughly
-zero — see the caching note under Custom domain.
+The realistic failure under a front-page spike is therefore *slowness*, not cost —
+and one shared CPU serving a 2.4 KB page from memory has a lot of headroom before
+that bites. No CDN is needed; don't add one pre-emptively.
 
 If something does surprise you, Fly's billing docs say they will discuss a refund
 for unexpected traffic or accidental resources.
@@ -56,16 +56,14 @@ fly logs            # expect "snapshot vN (new) · 20 rows · 2 qualifiers"
 
 ## Custom domain
 
-Order matters. Get the certificate issued over plain DNS **first**, then turn on
-any proxy — an ACME challenge behind a proxying CDN is the classic way this
-fails.
+Fly issues and renews the certificate itself; nothing else is required.
 
 ```sh
 fly certs add racetotur.in
 fly ips list                       # note the shared IPv4 and the IPv6
 ```
 
-At the registrar (or Cloudflare DNS, grey cloud / DNS-only for now):
+At the registrar:
 
 | Type | Name | Value |
 |---|---|---|
@@ -74,13 +72,18 @@ At the registrar (or Cloudflare DNS, grey cloud / DNS-only for now):
 
 ```sh
 fly certs show racetotur.in        # wait for "Certificate issued"
-curl -sI https://racetotur.in/     # confirm 200 before proxying
+curl -sI https://racetotur.in/     # expect 200
 ```
 
-Only then, if using Cloudflare, switch both records to proxied (orange cloud),
-set SSL mode **Full (strict)**, and add a Cache Rule for `/` and `/methodology`
-with "Respect origin cache headers" — the app already sends
-`max-age=120, stale-while-revalidate=600`.
+That is the whole deployment. Responses already carry
+`Cache-Control: max-age=120, stale-while-revalidate=600`, so browsers and any
+future CDN cache correctly without further work.
+
+If the site ever does get slow under load, putting a CDN in front is a DNS-level
+change requiring no code edit — but measure first, and expect not to need it. Note
+that if you do proxy through something like Cloudflare, add it *after* the Fly
+certificate is issued: an ACME challenge behind a proxy is the classic way cert
+issuance fails.
 
 Use the **shared** IPv4 that every app gets for free — it routes HTTPS by SNI,
 which is all this site serves. Do not run `fly ips allocate-v4`: a dedicated
