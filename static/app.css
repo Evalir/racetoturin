@@ -81,7 +81,10 @@ footer.site {
 .seats dd { margin: 0; color: var(--white); }
 .basis { font-size: 0.9rem; color: var(--gray); margin-bottom: 0.25rem; }
 
-.table-wrap { overflow-x: auto; }
+/* The load-bearing rule for narrow screens: the standings table is allowed to
+   be wider than the viewport and scroll horizontally *here*, which is what
+   keeps the page itself from scrolling. Do not remove. */
+.table-wrap { overflow-x: auto; max-width: 100%; }
 table.race { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
 table.race th, table.race td { padding: 0.25rem 0.5rem; border-bottom: 1px solid var(--dkgray); }
 table.race th {
@@ -121,9 +124,6 @@ tr.cutline.strong td { border-bottom-style: solid; }
   clip: rect(0 0 0 0); white-space: nowrap;
 }
 
-/* Badges carry a full and an abbreviated label; only one is ever shown. */
-.lbl-abbr { display: none; }
-
 @media (max-width: 700px) {
   main { padding: 0 0.5rem 2rem; }
   table.race { font-size: 0.85rem; }
@@ -131,13 +131,10 @@ tr.cutline.strong td { border-bottom-style: solid; }
   td.status .badge { display: block; margin: 0.1rem 0; }
 }
 
-/* Phone widths: the table must fit, not scroll. Drop the secondary movement
-   column, abbreviate status labels, and tighten spacing so that rank, player,
-   points and margin all fit a 360px viewport without wrapping names. */
+/* Phone widths. The table keeps every column and its full labels, and scrolls
+   inside .table-wrap when it needs to; tightening type and spacing just means
+   less scrolling. The page itself must never scroll — see .table-wrap. */
 @media (max-width: 560px) {
-  .col-move { display: none; }
-  .lbl-full { display: none; }
-  .lbl-abbr { display: inline; }
   table.race { font-size: 0.8rem; }
   table.race th, table.race td { padding: 0.3rem 0.25rem; }
   table.race th { letter-spacing: 0; }
