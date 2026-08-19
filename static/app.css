@@ -43,10 +43,6 @@ header.site { background: var(--gray); color: var(--black); padding: 0.35rem 1re
 header.site a, footer.site a { color: inherit; }
 header.site a:hover, header.site a:focus { background: var(--black); color: var(--gray); }
 .brand { margin: 0; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }
-.tag { font-weight: 700; }
-.tag::before { content: "["; }
-.tag::after { content: "]"; }
-.unofficial { margin: 0.15rem 0 0; font-size: 0.8rem; }
 
 footer.site {
   border-top: 1px solid var(--dkgray);

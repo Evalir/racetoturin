@@ -87,7 +87,6 @@ struct RowView {
 #[template(path = "index.html")]
 struct IndexPage {
     season: u16,
-    notice: String,
     fresh: FreshView,
     summary: SummaryView,
     rows: Vec<RowView>,
@@ -366,7 +365,6 @@ async fn index(State(shared): State<SharedState>) -> Response {
     let state = shared.load();
     let page = IndexPage {
         season: state.curated.season,
-        notice: state.curated.notice.clone(),
         fresh: build_fresh(&state, OffsetDateTime::now_utc()),
         summary: build_summary(&state),
         rows: build_rows(&state),

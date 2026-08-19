@@ -3,15 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Who would qualify for the ATP Finals in Turin if selection happened now — independent, unofficial, local build.">
-  <title>{% block title %}Race to Turin — local build{% endblock %}</title>
+  <meta name="description" content="Who would qualify for the ATP Finals in Turin if selection happened now.">
+  <title>{% block title %}Race to Turin{% endblock %}</title>
   <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
   <header class="site">
-    <p class="brand"><a href="/">racetotur.in</a> <span class="tag">unofficial</span></p>
-    <p class="unofficial">Independent and unofficial. Not affiliated with the ATP. {{ notice }}</p>
+    <p class="brand"><a href="/">racetotur.in</a></p>
   </header>
   <main id="main">
     {% block content %}{% endblock %}
@@ -23,6 +22,7 @@
       <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
       · <a href="/methodology">Methodology &amp; data sources</a>
     </p>
+    <p>An independent project, not affiliated with the ATP.</p>
   </footer>
 </body>
 </html>
