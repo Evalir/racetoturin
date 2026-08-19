@@ -94,6 +94,8 @@ struct RowView {
     country: String,
     official: bool,
     status_label: String,
+    /// Same state, short enough for a phone-width column.
+    status_short: String,
     status_class: String,
     points: String,
     margin: String,
@@ -310,13 +312,13 @@ fn build_rows(state: &AppState) -> Vec<RowView> {
             };
 
             let provisional = state.selection.state(&row.player_code);
-            let (status_label, status_class) = match provisional {
-                Provisional::TopSeven => ("Top 7", "in"),
-                Provisional::Eighth if slam_active => ("8th seat · Slam rule", "slam"),
-                Provisional::Eighth => ("8th seat", "in"),
-                Provisional::FirstAlternate => ("First alternate", "alt"),
-                Provisional::Withdrawn => ("Withdrawn", "out"),
-                Provisional::NotSelected => ("", ""),
+            let (status_label, status_short, status_class) = match provisional {
+                Provisional::TopSeven => ("Top 7", "T7", "in"),
+                Provisional::Eighth if slam_active => ("8th seat · Slam rule", "8·GS", "slam"),
+                Provisional::Eighth => ("8th seat", "8th", "in"),
+                Provisional::FirstAlternate => ("First alternate", "Alt", "alt"),
+                Provisional::Withdrawn => ("Withdrawn", "W/D", "out"),
+                Provisional::NotSelected => ("", "", ""),
             };
 
             let (margin, margin_class) = match state.selection.margin(&row.player_code) {
@@ -347,6 +349,7 @@ fn build_rows(state: &AppState) -> Vec<RowView> {
                 country: row.country.clone(),
                 official: officials.contains(row.player_code.as_str()),
                 status_label: status_label.to_string(),
+                status_short: status_short.to_string(),
                 status_class: status_class.to_string(),
                 points: thousands(row.race_points),
                 margin,
