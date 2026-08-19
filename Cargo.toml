@@ -17,6 +17,7 @@ sha2 = "0.10"
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "migrate"] }
 time = { version = "0.3", features = ["formatting", "parsing", "macros"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "time"] }
+tower-http = { version = "0.6", features = ["compression-gzip"] }
 toml = "0.8"
 
 [dev-dependencies]

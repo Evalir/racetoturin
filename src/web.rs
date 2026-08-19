@@ -4,12 +4,13 @@ use arc_swap::ArcSwap;
 use askama::Template;
 use axum::{
     extract::State,
-    http::{header, StatusCode},
+    http::{header, HeaderName, StatusCode},
     response::{Html, IntoResponse, Response},
     routing::get,
     Router,
 };
 use time::{macros::format_description, OffsetDateTime};
+use tower_http::compression::CompressionLayer;
 
 use crate::{
     curated::Curated,
@@ -36,8 +37,17 @@ pub fn router(state: SharedState) -> Router {
         .route("/methodology", get(methodology))
         .route("/health/ready", get(health_ready))
         .route("/static/app.css", get(app_css))
+        // Compression matters more than it looks: the page is mostly repeated
+        // markup, so it shrinks ~4x, which is the whole egress bill under load.
+        .layer(CompressionLayer::new())
         .with_state(state)
 }
+
+/// Short enough that a refresh shows up promptly, long enough that a CDN
+/// absorbs a traffic spike instead of the single machine.
+const CACHE_PAGE: &str = "public, max-age=120, stale-while-revalidate=600";
+/// The methodology page only changes when the code does.
+const CACHE_STATIC: &str = "public, max-age=3600";
 
 // ---------------------------------------------------------------------------
 // View models: templates stay dumb; every displayed string is computed here.
@@ -350,9 +360,21 @@ fn build_rows(state: &AppState) -> Vec<RowView> {
 // Handlers
 // ---------------------------------------------------------------------------
 
-fn render<T: Template>(template: &T) -> Response {
+fn render<T: Template>(template: &T, cache_control: &'static str, version: i64) -> Response {
     match template.render() {
-        Ok(body) => Html(body).into_response(),
+        Ok(body) => (
+            [
+                (header::CACHE_CONTROL, cache_control.to_string()),
+                // Lets an operator (or a monitor) see which snapshot a response
+                // came from without parsing the page.
+                (
+                    HeaderName::from_static("x-snapshot-version"),
+                    version.to_string(),
+                ),
+            ],
+            Html(body),
+        )
+            .into_response(),
         Err(err) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("template error: {err}"),
@@ -370,7 +392,7 @@ async fn index(State(shared): State<SharedState>) -> Response {
         rows: build_rows(&state),
         slam_provision_active: state.selection.eighth_basis == SeatBasis::GrandSlamChampion,
     };
-    render(&page)
+    render(&page, CACHE_PAGE, state.version)
 }
 
 async fn methodology(State(shared): State<SharedState>) -> Response {
@@ -382,7 +404,7 @@ async fn methodology(State(shared): State<SharedState>) -> Response {
         parser_version: state.snapshot.parser_version.clone(),
         source: state.snapshot.source.clone(),
     };
-    render(&page)
+    render(&page, CACHE_STATIC, state.version)
 }
 
 // Startup fails outright without a valid snapshot, so a running process is

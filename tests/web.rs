@@ -96,6 +96,31 @@ async fn methodology_and_health_endpoints_work() {
     assert_eq!(body, "ready\n");
 }
 
+/// Cache headers are the cost control: they let a CDN absorb a traffic spike
+/// instead of the single machine serving every hit.
+#[tokio::test]
+async fn pages_are_cacheable_and_declare_their_snapshot() {
+    let response = app("live/curated.toml")
+        .await
+        .oneshot(Request::get("/").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    let headers = response.headers();
+    let cache = headers
+        .get("cache-control")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or_default();
+    assert!(cache.contains("max-age="), "no max-age: {cache:?}");
+    assert!(
+        cache.contains("stale-while-revalidate"),
+        "no stale-while-revalidate: {cache:?}"
+    );
+    assert_eq!(
+        headers.get("x-snapshot-version").unwrap().to_str().unwrap(),
+        "1"
+    );
+}
+
 #[tokio::test]
 async fn css_is_served() {
     let (status, body) = get_body(app("live/curated.toml").await, "/static/app.css").await;

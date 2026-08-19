@@ -4,8 +4,31 @@ One machine, one volume, one region. SQLite cannot be shared, so this app is
 deliberately not scaled out.
 
 Running cost is about **$2.20/month**: $2.02 for an always-on shared-cpu-1x/256MB
-machine plus $0.15 for a 1 GB volume. Egress at $0.02/GB is noise — the page is
-~10 KB compressed, so a million visits costs about twenty cents.
+machine plus $0.15 for a 1 GB volume.
+
+## Why traffic cannot blow up the bill
+
+Fly has **no spending caps or budget alerts**, so the protection here is
+structural rather than a setting:
+
+- **Compute is fixed price.** A machine bills per second it is *running*, by size
+  — not by CPU consumed. A traffic spike costs nothing extra in compute; at worst
+  the shared CPU throttles.
+- **Egress is the only variable, and it is tiny.** The page is 2.4 KB gzipped.
+  At $0.02/GB: 100k views ≈ $0.005, 1M views ≈ $0.05, 10M views ≈ $0.50.
+- **Horizontal scale-out cannot happen by accident.** One SQLite volume means one
+  machine; a second machine has nothing to mount. `auto_stop_machines = "off"`
+  and `min_machines_running = 1` pin it there. Never run `fly scale count`.
+- **No per-request upstream work.** Pages render from an in-memory snapshot;
+  Wikipedia is polled once every 6h regardless of traffic, so viral traffic
+  cannot turn into a thundering herd against the source.
+
+The realistic failure under a front-page spike is therefore *slowness*, not cost.
+Putting Cloudflare's free tier in front fixes that and drops egress to roughly
+zero — see the caching note under Custom domain.
+
+If something does surprise you, Fly's billing docs say they will discuss a refund
+for unexpected traffic or accidental resources.
 
 ## First deploy
 
@@ -33,11 +56,31 @@ fly logs            # expect "snapshot vN (new) · 20 rows · 2 qualifiers"
 
 ## Custom domain
 
+Order matters. Get the certificate issued over plain DNS **first**, then turn on
+any proxy — an ACME challenge behind a proxying CDN is the classic way this
+fails.
+
 ```sh
 fly certs add racetotur.in
-fly ips list                       # point A/AAAA records at these
-fly certs show racetotur.in        # wait for "Certificate issued"
+fly ips list                       # note the shared IPv4 and the IPv6
 ```
+
+At the registrar (or Cloudflare DNS, grey cloud / DNS-only for now):
+
+| Type | Name | Value |
+|---|---|---|
+| A | `@` | the IPv4 from `fly ips list` |
+| AAAA | `@` | the IPv6 from `fly ips list` |
+
+```sh
+fly certs show racetotur.in        # wait for "Certificate issued"
+curl -sI https://racetotur.in/     # confirm 200 before proxying
+```
+
+Only then, if using Cloudflare, switch both records to proxied (orange cloud),
+set SSL mode **Full (strict)**, and add a Cache Rule for `/` and `/methodology`
+with "Respect origin cache headers" — the app already sends
+`max-age=120, stale-while-revalidate=600`.
 
 Use the **shared** IPv4 that every app gets for free — it routes HTTPS by SNI,
 which is all this site serves. Do not run `fly ips allocate-v4`: a dedicated
