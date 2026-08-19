@@ -78,4 +78,4 @@ storage dedup/versioning, and HTTP rendering.
 - Official status is never inferred from points; it arrives with its citation.
 - The database is written by the worker and never sits on the request path;
   handlers read an `ArcSwap` snapshot.
-- Back up `/data` (e.g. Litestream) and put a CDN in front for deployment.
+- Deployment is one Fly machine with one volume; see `deploy/RUNBOOK.md`.

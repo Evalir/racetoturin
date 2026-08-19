@@ -63,7 +63,7 @@ fly certs add racetotur.in
 fly ips list                       # note the shared IPv4 and the IPv6
 ```
 
-At the registrar:
+At the registrar — an apex domain needs both records:
 
 | Type | Name | Value |
 |---|---|---|
@@ -75,29 +75,16 @@ fly certs show racetotur.in        # wait for "Certificate issued"
 curl -sI https://racetotur.in/     # expect 200
 ```
 
-That is the whole deployment. Responses already carry
-`Cache-Control: max-age=120, stale-while-revalidate=600`, so browsers and any
-future CDN cache correctly without further work.
+Use the **shared** IPv4 every app gets for free — it routes HTTPS by SNI, which is
+all this site serves. Do not run `fly ips allocate-v4`: a dedicated IPv4 is $2/mo
+and would nearly double the bill for no benefit here.
 
-If the site ever does get slow under load, putting a CDN in front is a DNS-level
-change requiring no code edit — but measure first, and expect not to need it. Note
-that if you do proxy through something like Cloudflare, add it *after* the Fly
-certificate is issued: an ACME challenge behind a proxy is the classic way cert
-issuance fails.
-
-Use the **shared** IPv4 that every app gets for free — it routes HTTPS by SNI,
-which is all this site serves. Do not run `fly ips allocate-v4`: a dedicated
-IPv4 is $2/mo and would nearly double the bill for no benefit here.
-
-For the apex domain you need both records from `fly ips list`:
-
-| Type | Name | Value |
-|---|---|---|
-| A | `@` | the dedicated IPv4 |
-| AAAA | `@` | the dedicated IPv6 |
-
-Optionally put Cloudflare in front (proxied DNS, cache everything except
-`/health/*`). Origin response is already fast; the CDN mostly absorbs bursts.
+That is the whole deployment. No CDN, no proxy, no extra services. Responses carry
+`Cache-Control: max-age=120, stale-while-revalidate=600`, so browsers cache
+correctly on their own. If the site ever does get slow under real load, adding a
+CDN later is a DNS change with no code edit — but measure first, and add it only
+*after* the Fly certificate is issued, since an ACME challenge behind a proxy is
+the classic way issuance fails.
 
 ## Continuous deploys (optional, after the first deploy works)
 
