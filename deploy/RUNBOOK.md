@@ -7,12 +7,17 @@ deliberately not scaled out.
 
 ```sh
 brew install flyctl
-fly auth login                                  # interactive
-fly launch --no-deploy --copy-config --ha=false # reuses the committed fly.toml
-fly volumes create data --size 1 --region ams   # 1 GB is generous
-fly deploy
+fly auth login                                       # interactive
+fly apps create racetoturin                          # not `fly launch`
+fly volumes create data --size 1 --region ams --yes   # 1 GB is generous
+fly deploy --ha=false                                # uses the committed fly.toml
 fly open
 ```
+
+Avoid `fly launch` and the web "deploy from GitHub" flow for the first deploy:
+launch runs a wizard that rewrites `fly.toml`, and the web flow has no volume
+step at all, so `[[mounts]]` would land on an ephemeral disk. `fly apps create`
+plus `fly deploy` uses the config exactly as committed.
 
 `--ha=false` matters: the default would create two machines, and two writers on
 one SQLite file is not a thing. Verify you have exactly one:
@@ -30,8 +35,27 @@ fly ips list                       # point A/AAAA records at these
 fly certs show racetotur.in        # wait for "Certificate issued"
 ```
 
+For the apex domain you need both records from `fly ips list`:
+
+| Type | Name | Value |
+|---|---|---|
+| A | `@` | the dedicated IPv4 |
+| AAAA | `@` | the dedicated IPv6 |
+
 Optionally put Cloudflare in front (proxied DNS, cache everything except
 `/health/*`). Origin response is already fast; the CDN mostly absorbs bursts.
+
+## Continuous deploys (optional, after the first deploy works)
+
+Once the app exists with its volume, connecting GitHub is safe and gives you
+deploy-on-push:
+
+```sh
+fly tokens create deploy -x 999999h    # add as GH secret FLY_API_TOKEN
+```
+
+Then a workflow step running `flyctl deploy --remote-only`. Do this *after* the
+CLI deploy, never instead of it.
 
 ## Routine operations
 
