@@ -1,0 +1,38 @@
+app = "racetoturin"
+primary_region = "ams"          # change to whichever region you prefer
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  RTT_BIND = "0.0.0.0:8080"
+  RTT_DB = "/data/racetoturin.db"
+  # ~10 days. Tighten to ~3 days (259200) for the October/November run-in,
+  # when a stale table actively misleads.
+  RTT_STALE_AFTER_SECS = "864000"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # The worker polls upstream on a schedule, so the machine must stay up:
+  # a suspended machine does not refresh. Also keeps SQLite to one writer.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/health/ready"
+
+# SQLite lives on a single volume, so this app runs as exactly one machine
+# in one region. Do not scale it out.
+[[mounts]]
+  source = "data"
+  destination = "/data"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
