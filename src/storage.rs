@@ -101,8 +101,8 @@ impl Store {
 
         let version: i64 = sqlx::query_scalar(
             "INSERT INTO snapshots
-               (created_at, source_as_of, source, parser_version, content_hash, row_count)
-             VALUES (?, ?, ?, ?, ?, ?)
+               (created_at, source_as_of, source, parser_version, content_hash)
+             VALUES (?, ?, ?, ?, ?)
              RETURNING id",
         )
         .bind(fmt(snapshot.generated_at)?)
@@ -110,7 +110,6 @@ impl Store {
         .bind(&snapshot.source)
         .bind(&snapshot.parser_version)
         .bind(&hash)
-        .bind(snapshot.rows.len() as i64)
         .fetch_one(&mut *tx)
         .await?;
 

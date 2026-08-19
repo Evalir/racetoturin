@@ -68,7 +68,6 @@ struct RowView {
     name: String,
     country: String,
     official: bool,
-    has_status: bool,
     status_label: String,
     status_class: String,
     points: String,
@@ -87,10 +86,10 @@ struct RowView {
 #[template(path = "index.html")]
 struct IndexPage {
     season: u16,
+    notice: String,
     fresh: FreshView,
     summary: SummaryView,
     rows: Vec<RowView>,
-    total: usize,
     slam_provision_active: bool,
 }
 
@@ -98,6 +97,7 @@ struct IndexPage {
 #[template(path = "methodology.html")]
 struct MethodologyPage {
     season: u16,
+    notice: String,
     ruleset: String,
     parser_version: String,
     source: String,
@@ -157,7 +157,7 @@ fn build_fresh(state: &AppState, now: OffsetDateTime) -> FreshView {
         accuracy_label: if is_stale {
             "stale — last known good".to_string()
         } else {
-            "scraped live (local fixture)".to_string()
+            "scraped live".to_string()
         },
         is_stale,
         source_dt: fmt_rfc3339(state.snapshot.source_as_of),
@@ -183,6 +183,9 @@ fn build_summary(state: &AppState) -> SummaryView {
             .unwrap_or_else(|| code.to_string())
     };
 
+    // Display names resolve through the snapshot by code, like every other
+    // name on the page; the curated name is only a fallback for a player
+    // not in the visible table.
     let officials = if state.curated.official_qualifiers.is_empty() {
         "None announced yet".to_string()
     } else {
@@ -190,7 +193,15 @@ fn build_summary(state: &AppState) -> SummaryView {
             .curated
             .official_qualifiers
             .iter()
-            .map(|p| p.name.clone())
+            .map(|p| {
+                state
+                    .snapshot
+                    .rows
+                    .iter()
+                    .find(|r| r.player_code == p.code)
+                    .map(|r| r.player_name.clone())
+                    .unwrap_or_else(|| p.name.clone())
+            })
             .collect::<Vec<_>>()
             .join(", ")
     };
@@ -270,8 +281,8 @@ fn build_rows(state: &AppState) -> Vec<RowView> {
             let provisional = state.selection.state(&row.player_code);
             let (status_label, status_class) = match provisional {
                 Provisional::TopSeven => ("Top 7", "in"),
-                Provisional::EighthByRank => ("8th seat", "in"),
-                Provisional::EighthBySlamRule => ("8th seat · Slam rule", "slam"),
+                Provisional::Eighth if slam_active => ("8th seat · Slam rule", "slam"),
+                Provisional::Eighth => ("8th seat", "in"),
                 Provisional::FirstAlternate => ("First alternate", "alt"),
                 Provisional::Withdrawn => ("Withdrawn", "out"),
                 Provisional::NotSelected => ("", ""),
@@ -300,17 +311,18 @@ fn build_rows(state: &AppState) -> Vec<RowView> {
             };
 
             let (margin, margin_class) = match state.selection.margin(&row.player_code) {
-                Some(m) if m >= 0 => (signed_thousands(m), "pos"),
-                Some(m) => (signed_thousands(m), "neg"),
+                Some(m) => (signed_thousands(m), if m >= 0 { "pos" } else { "neg" }),
                 None => ("–".to_string(), ""),
             };
 
             let mut classes: Vec<&str> = Vec::new();
             match provisional {
-                Provisional::TopSeven | Provisional::EighthByRank => classes.push("selected"),
-                Provisional::EighthBySlamRule => {
+                Provisional::TopSeven => classes.push("selected"),
+                Provisional::Eighth => {
                     classes.push("selected");
-                    classes.push("slam-pick");
+                    if slam_active {
+                        classes.push("slam-pick");
+                    }
                 }
                 Provisional::FirstAlternate => classes.push("alternate"),
                 Provisional::Withdrawn => classes.push("withdrawn"),
@@ -325,7 +337,6 @@ fn build_rows(state: &AppState) -> Vec<RowView> {
                 name: row.player_name.clone(),
                 country: row.country.clone(),
                 official: officials.contains(row.player_code.as_str()),
-                has_status: !status_label.is_empty(),
                 status_label: status_label.to_string(),
                 status_class: status_class.to_string(),
                 points: thousands(row.live_points),
@@ -345,15 +356,13 @@ fn build_rows(state: &AppState) -> Vec<RowView> {
     // Boundary markers: a strong line after the seventh seat, and an
     // ordinary 8/9 line only when seat 8 comes from race rank. Skip both
     // if withdrawals have made the displayed order non-contiguous.
-    let top_seven_contiguous = views
-        .iter()
-        .take(7)
-        .filter(|v| v.status_label == "Top 7")
-        .count()
-        == 7;
-    if top_seven_contiguous && views.len() > 7 {
+    let rows = &state.snapshot.rows;
+    let seat = |i: usize| state.selection.state(&rows[i].player_code);
+    let top_seven_contiguous =
+        rows.len() > 7 && (0..7).all(|i| seat(i) == Provisional::TopSeven);
+    if top_seven_contiguous {
         views[6].cut_strong_after = true;
-        if !slam_active && views[7].status_label == "8th seat" {
+        if !slam_active && seat(7) == Provisional::Eighth {
             views[7].cut_ordinary_after = true;
         }
     }
@@ -379,10 +388,10 @@ fn render<T: Template>(template: &T) -> Response {
 async fn index(State(state): State<Arc<AppState>>) -> Response {
     let page = IndexPage {
         season: state.curated.season,
+        notice: state.curated.notice.clone(),
         fresh: build_fresh(&state, OffsetDateTime::now_utc()),
         summary: build_summary(&state),
         rows: build_rows(&state),
-        total: state.snapshot.rows.len(),
         slam_provision_active: state.selection.eighth_basis == SeatBasis::GrandSlamChampion,
     };
     render(&page)
@@ -391,6 +400,7 @@ async fn index(State(state): State<Arc<AppState>>) -> Response {
 async fn methodology(State(state): State<Arc<AppState>>) -> Response {
     let page = MethodologyPage {
         season: state.curated.season,
+        notice: state.curated.notice.clone(),
         ruleset: state.curated.ruleset.clone(),
         parser_version: state.snapshot.parser_version.clone(),
         source: state.snapshot.source.clone(),

@@ -1,9 +1,6 @@
 use serde::Serialize;
 use time::OffsetDateTime;
 
-/// Bumped whenever row extraction changes; recorded on every snapshot.
-pub const PARSER_VERSION: &str = "fixture-html-1";
-
 // Rows derive Serialize because the store's content hash is computed over
 // their canonical JSON.
 #[derive(Debug, Clone, Serialize)]

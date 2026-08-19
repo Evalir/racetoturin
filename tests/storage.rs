@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use racetoturin::{
     model::Snapshot,
     parser,
@@ -7,9 +5,7 @@ use racetoturin::{
 };
 
 fn fixture_snapshot() -> Snapshot {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let html = std::fs::read_to_string(root.join("fixtures/race.html")).unwrap();
-    parser::parse(&html, "fixtures/race.html").unwrap()
+    parser::parse(include_str!("../fixtures/race.html"), "fixtures/race.html").unwrap()
 }
 
 #[tokio::test]

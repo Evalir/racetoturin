@@ -11,7 +11,8 @@ use anyhow::{Context, Result};
 
 pub struct Loaded {
     pub state: web::AppState,
-    pub outcome: storage::PublishOutcome,
+    /// False when the store already held this content and nothing was written.
+    pub created: bool,
 }
 
 /// The full local pipeline, once, at startup: parse the fixture into a
@@ -47,6 +48,6 @@ pub async fn ingest_and_load(
             selection,
             stale_after,
         },
-        outcome,
+        created: outcome.created,
     })
 }

@@ -7,8 +7,7 @@ CREATE TABLE snapshots (
     source_as_of   TEXT    NOT NULL,                  -- RFC 3339 UTC
     source         TEXT    NOT NULL,
     parser_version TEXT    NOT NULL,
-    content_hash   TEXT    NOT NULL,                  -- sha256 of normalized rows
-    row_count      INTEGER NOT NULL
+    content_hash   TEXT    NOT NULL                   -- sha256 of normalized rows
 );
 
 CREATE TABLE snapshot_rows (

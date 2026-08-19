@@ -27,7 +27,7 @@
 </section>
 
 <section aria-label="Live race table">
-  <h2>Live race — top {{ total }}</h2>
+  <h2>Live race — top {{ rows.len() }}</h2>
   <div class="table-wrap">
     <table class="race">
       <thead>
@@ -51,7 +51,7 @@
           <td class="left player">{{ row.name }} <span class="cc">{{ row.country }}</span></td>
           <td class="left status">
             {% if row.official %}<span class="badge official">Official</span>{% endif %}
-            {% if row.has_status %}<span class="badge st-{{ row.status_class }}">{{ row.status_label }}</span>{% endif %}
+            {% if !row.status_label.is_empty() %}<span class="badge st-{{ row.status_class }}">{{ row.status_label }}</span>{% endif %}
           </td>
           <td class="num points">{{ row.points }}</td>
           <td class="left event">{{ row.event }}</td>

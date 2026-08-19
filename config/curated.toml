@@ -9,6 +9,7 @@
 
 season = 2026
 ruleset = "atp-singles-2026.local-fixture"
+notice = "This build renders a synthetic fixture: every name, point total, result, and Grand Slam title on this page is fictional sample data."
 
 [[slam_champions]]
 code = "s0ag"

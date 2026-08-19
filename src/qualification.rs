@@ -9,11 +9,12 @@ pub enum SeatBasis {
     GrandSlamChampion,
 }
 
+/// Seat-8 flavor lives only in `Selection::eighth_basis`; the eighth
+/// player's state is just `Eighth`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Provisional {
     TopSeven,
-    EighthByRank,
-    EighthBySlamRule,
+    Eighth,
     FirstAlternate,
     NotSelected,
     Withdrawn,
@@ -105,10 +106,7 @@ pub fn select(rows: &[RaceRow], curated: &Curated) -> Selection {
     for (i, row) in order.iter().enumerate() {
         let state = match i {
             0..=6 => Provisional::TopSeven,
-            7 => match eighth_basis {
-                SeatBasis::GrandSlamChampion => Provisional::EighthBySlamRule,
-                SeatBasis::RaceRank => Provisional::EighthByRank,
-            },
+            7 => Provisional::Eighth,
             8 => Provisional::FirstAlternate,
             _ => Provisional::NotSelected,
         };
@@ -172,10 +170,12 @@ mod tests {
         let player = |code: &&str| CuratedPlayer {
             code: code.to_string(),
             name: code.to_string(),
+            source: None,
         };
         Curated {
             season: 2026,
             ruleset: "test".to_string(),
+            notice: String::new(),
             slam_champions: champs.iter().map(player).collect(),
             official_qualifiers: vec![],
             withdrawals: withdrawals.iter().map(player).collect(),
@@ -189,7 +189,7 @@ mod tests {
         assert_eq!(selection.eighth_code.as_deref(), Some("p008"));
         assert_eq!(selection.alternate_code.as_deref(), Some("p009"));
         assert_eq!(selection.state("p001"), Provisional::TopSeven);
-        assert_eq!(selection.state("p008"), Provisional::EighthByRank);
+        assert_eq!(selection.state("p008"), Provisional::Eighth);
         assert_eq!(selection.state("p009"), Provisional::FirstAlternate);
         assert_eq!(selection.state("p010"), Provisional::NotSelected);
     }
@@ -209,7 +209,7 @@ mod tests {
         let selection = select(&table(), &curated_with(&["p010"], &[]));
         assert_eq!(selection.eighth_basis, SeatBasis::GrandSlamChampion);
         assert_eq!(selection.eighth_code.as_deref(), Some("p010"));
-        assert_eq!(selection.state("p010"), Provisional::EighthBySlamRule);
+        assert_eq!(selection.state("p010"), Provisional::Eighth);
         // Rank 8 by points is now the first alternate, not selected.
         assert_eq!(selection.alternate_code.as_deref(), Some("p008"));
         assert_eq!(selection.state("p008"), Provisional::FirstAlternate);

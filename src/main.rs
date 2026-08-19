@@ -21,8 +21,8 @@ async fn main() -> Result<()> {
     let loaded = racetoturin::ingest_and_load(&fixture, &curated, stale_after, &db).await?;
     eprintln!(
         "snapshot v{} ({}) · {} rows from {} · eighth-seat basis {:?}",
-        loaded.outcome.version,
-        if loaded.outcome.created { "new" } else { "content unchanged" },
+        loaded.state.version,
+        if loaded.created { "new" } else { "content unchanged" },
         loaded.state.snapshot.rows.len(),
         loaded.state.snapshot.source,
         loaded.state.selection.eighth_basis,

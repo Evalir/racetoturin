@@ -46,8 +46,9 @@ async fn homepage_renders_slam_champion_branch() {
     assert!(body.contains("Top seven — qualify directly on race rank"));
     // Official status comes from the curated file, not points.
     assert!(body.contains("Official"));
-    // Unofficial labelling and provenance are visible.
+    // Unofficial labelling, the config's data notice, and provenance are visible.
     assert!(body.contains("Independent and unofficial"));
+    assert!(body.contains("fictional sample data"));
     assert!(body.contains("source age"));
     assert!(body.contains("parser fixture-html-1"));
     assert!(body.contains("snapshot v1"));

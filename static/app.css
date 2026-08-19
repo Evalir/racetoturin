@@ -70,8 +70,7 @@ footer.site {
 }
 .badge::before { content: "["; }
 .badge::after { content: "]"; }
-.badge.acc { background: var(--green); color: var(--black); }
-.badge.official { background: var(--green); color: var(--black); }
+.badge.acc, .badge.official { background: var(--green); color: var(--black); }
 .badge.st-in { color: var(--green); }
 .badge.st-slam { color: var(--yellow); }
 .badge.st-alt { color: var(--magenta); }
@@ -103,7 +102,6 @@ td.margin.pos { color: var(--green); }
 td.margin.neg { color: var(--red); }
 
 tr.selected td.player { color: var(--green); }
-tr.selected td.player a { color: inherit; }
 tr.slam-pick td.player { color: var(--yellow); font-weight: 700; }
 tr.alternate td.player { color: var(--magenta); }
 tr.withdrawn { color: var(--dkgray); text-decoration: line-through; }

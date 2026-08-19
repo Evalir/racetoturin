@@ -5,10 +5,15 @@ use serde::Deserialize;
 
 /// Tiny, auditable manual input: officially announced facts that must
 /// never be inferred from points (qualifiers, slam titles, withdrawals).
+/// Unknown keys are rejected so a typo cannot silently drop a fact.
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Curated {
     pub season: u16,
     pub ruleset: String,
+    /// One honest sentence about where this configuration's data comes
+    /// from, shown in the page header.
+    pub notice: String,
     #[serde(default)]
     pub slam_champions: Vec<CuratedPlayer>,
     #[serde(default)]
@@ -18,11 +23,15 @@ pub struct Curated {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CuratedPlayer {
     /// ATP player code — the identity key, matching parsed rows.
     pub code: String,
     /// Display name; identity always goes through the code.
     pub name: String,
+    /// Provenance of the curated fact (URL or note); audit aid.
+    #[serde(default)]
+    pub source: Option<String>,
 }
 
 impl Curated {
@@ -35,17 +44,18 @@ impl Curated {
     }
 
     pub fn slam_champion_codes(&self) -> HashSet<&str> {
-        self.slam_champions.iter().map(|p| p.code.as_str()).collect()
+        codes(&self.slam_champions)
     }
 
     pub fn official_qualifier_codes(&self) -> HashSet<&str> {
-        self.official_qualifiers
-            .iter()
-            .map(|p| p.code.as_str())
-            .collect()
+        codes(&self.official_qualifiers)
     }
 
     pub fn withdrawal_codes(&self) -> HashSet<&str> {
-        self.withdrawals.iter().map(|p| p.code.as_str()).collect()
+        codes(&self.withdrawals)
     }
+}
+
+fn codes(list: &[CuratedPlayer]) -> HashSet<&str> {
+    list.iter().map(|p| p.code.as_str()).collect()
 }

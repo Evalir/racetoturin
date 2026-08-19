@@ -2,38 +2,47 @@ use anyhow::{anyhow, bail, Context, Result};
 use scraper::{ElementRef, Html, Selector};
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
-use crate::model::{EventState, RaceRow, Snapshot, PARSER_VERSION};
+use crate::model::{EventState, RaceRow, Snapshot};
+
+/// Bumped whenever row extraction below changes; recorded on every snapshot.
+pub const PARSER_VERSION: &str = "fixture-html-1";
 
 fn sel(s: &str) -> Selector {
     Selector::parse(s).expect("static selector must be valid")
 }
 
+fn text_of(el: ElementRef) -> String {
+    el.text().collect::<String>().trim().to_string()
+}
+
 fn cell_text(row: ElementRef, selector: &Selector) -> Option<String> {
-    row.select(selector)
-        .next()
-        .map(|el| el.text().collect::<String>().trim().to_string())
+    row.select(selector).next().map(text_of)
+}
+
+/// An empty or dash-only cell means "not displayed by the source".
+fn is_blank(text: &str) -> bool {
+    matches!(text.trim(), "" | "-" | "–" | "—")
 }
 
 /// "8,760" / "8760" -> 8760. Rejects anything else.
 fn parse_points(text: &str) -> Result<u32> {
-    let cleaned: String = text.chars().filter(|c| *c != ',' && *c != '\u{202f}').collect();
+    let cleaned: String = text.chars().filter(|c| *c != ',').collect();
     cleaned
         .parse::<u32>()
         .with_context(|| format!("cannot parse points value {text:?}"))
 }
 
-/// Empty / dash cells mean "not displayed by the source".
 fn parse_optional_points(text: Option<String>) -> Result<Option<u32>> {
-    match text.as_deref().map(str::trim) {
-        None | Some("") | Some("-") | Some("–") | Some("—") => Ok(None),
+    match text.as_deref() {
+        None => Ok(None),
+        Some(t) if is_blank(t) => Ok(None),
         Some(v) => parse_points(v).map(Some),
     }
 }
 
 fn parse_movement(text: Option<String>) -> Option<i32> {
     let t = text?;
-    let t = t.trim();
-    if t.is_empty() || t == "-" || t == "–" || t == "—" {
+    if is_blank(&t) {
         return None;
     }
     t.parse::<i32>().ok()
@@ -100,7 +109,7 @@ fn parse_row(tr: ElementRef, s: &RowSelectors) -> Result<RaceRow> {
         .select(&s.player_link)
         .next()
         .ok_or_else(|| anyhow!("player link missing"))?;
-    let player_name = player_el.text().collect::<String>().trim().to_string();
+    let player_name = text_of(player_el);
     if player_name.is_empty() {
         bail!("player name empty");
     }
@@ -118,7 +127,7 @@ fn parse_row(tr: ElementRef, s: &RowSelectors) -> Result<RaceRow> {
 
     let (event, mut unavailable_reason) = match tr.select(&s.event_link).next() {
         Some(link) => {
-            let name = link.text().collect::<String>().trim().to_string();
+            let name = text_of(link);
             let round = cell_text(tr, &s.round).unwrap_or_default();
             (Some(EventState { name, round }), None)
         }
@@ -126,9 +135,9 @@ fn parse_row(tr: ElementRef, s: &RowSelectors) -> Result<RaceRow> {
             let reason = tr
                 .select(&s.idle)
                 .next()
-                .map(|el| el.text().collect::<String>().trim().to_string())
+                .map(text_of)
                 .or_else(|| cell_text(tr, &s.tournament))
-                .filter(|t| !t.is_empty() && t != "-" && t != "–" && t != "—")
+                .filter(|t| !is_blank(t))
                 .unwrap_or_else(|| "not playing this week".to_string());
             (None, Some(reason))
         }

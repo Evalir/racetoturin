@@ -1,6 +1,11 @@
 FROM rust:1.97-slim-bookworm AS builder
 WORKDIR /src
-COPY . .
+# Copy only build inputs so doc/fixture edits don't invalidate the layer.
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
+COPY templates ./templates
+COPY static ./static
+COPY migrations ./migrations
 RUN cargo build --release --locked
 
 FROM debian:bookworm-slim
