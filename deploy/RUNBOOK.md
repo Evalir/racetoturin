@@ -3,6 +3,10 @@
 One machine, one volume, one region. SQLite cannot be shared, so this app is
 deliberately not scaled out.
 
+Running cost is about **$2.20/month**: $2.02 for an always-on shared-cpu-1x/256MB
+machine plus $0.15 for a 1 GB volume. Egress at $0.02/GB is noise — the page is
+~10 KB compressed, so a million visits costs about twenty cents.
+
 ## First deploy
 
 ```sh
@@ -34,6 +38,10 @@ fly certs add racetotur.in
 fly ips list                       # point A/AAAA records at these
 fly certs show racetotur.in        # wait for "Certificate issued"
 ```
+
+Use the **shared** IPv4 that every app gets for free — it routes HTTPS by SNI,
+which is all this site serves. Do not run `fly ips allocate-v4`: a dedicated
+IPv4 is $2/mo and would nearly double the bill for no benefit here.
 
 For the apex domain you need both records from `fly ips list`:
 
