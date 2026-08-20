@@ -99,7 +99,6 @@ td.move.up { color: var(--green); }
 td.move.down { color: var(--red); }
 td.move.flat { color: var(--dkgray); }
 .cc { font-size: 0.78rem; color: var(--dkgray); }
-.event { color: var(--gray); font-size: 0.85rem; }
 td.margin.pos { color: var(--green); }
 td.margin.neg { color: var(--red); }
 
@@ -144,6 +143,67 @@ tr.cutline.strong td { border-bottom-style: solid; }
   h1 { font-size: 1.15rem; }
   .seats { gap: 0.35rem; }
 }
+
+/* Says once, above the table, what the twelve disclosure strips below are for;
+   repeating the word "breakdown" in every summary would cost more and read
+   worse. */
+.hint { color: var(--dkgray); font-size: 0.8rem; margin: 0 0 0.4rem; }
+
+/* Per-player points breakdown. No JavaScript is served, so disclosure is the
+   native <details>; it lives in a full-width row beneath its player because a
+   <details> cannot wrap a <tr>. The player row drops its bottom border so the
+   pair closes with one line instead of two. */
+tr.has-ledger > td { border-bottom: none; }
+tr.ledger-row > td { padding: 0 0.5rem 0.4rem; }
+tr.ledger-row summary {
+  list-style: none;
+  cursor: pointer;
+  color: var(--dkgray);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0;
+}
+tr.ledger-row summary::-webkit-details-marker { display: none; }
+tr.ledger-row summary::before { content: "\25B8"; color: var(--yellow); margin-right: 0.35rem; }
+tr.ledger-row details[open] > summary::before { content: "\25BE"; }
+tr.ledger-row summary:hover { color: var(--cyan); }
+
+/* Capped width so the ledger reads as a column on a wide screen, and a grid
+   rather than a nested table so it wraps instead of widening .race. */
+.ledger { font-size: 0.82rem; padding: 0.15rem 0 0.5rem 1.1rem; max-width: 32rem; }
+.lg-title {
+  margin: 0.5rem 0 0.15rem;
+  color: var(--yellow); font-size: 0.7rem;
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.lg-list { list-style: none; margin: 0; padding: 0; }
+.lg-list li, .lg-total {
+  display: grid; grid-template-columns: 1fr 2.9rem 4rem;
+  gap: 0.4rem; margin: 0;
+}
+.lg-list .event { overflow-wrap: anywhere; }
+.lg-list .rd, .lg-total .rd { text-align: right; }
+.lg-list .pt, .lg-total .pt { text-align: right; font-variant-numeric: tabular-nums; }
+/* The source italicises a next-best result standing in for a mandatory
+   Masters 1000; keeping that convention means the footnote explains a mark the
+   reader can already see. */
+.lg-list li.sub .event { font-style: italic; }
+.lg-list .qual { color: var(--dkgray); font-size: 0.74rem; font-style: normal; }
+.lg-list li.absent, .lg-list li.pending { color: var(--dkgray); }
+.lg-total {
+  margin-top: 0.4rem; padding-top: 0.15rem;
+  border-top: 1px solid var(--dkgray);
+  color: var(--white); font-weight: 700;
+}
+.lg-note {
+  color: var(--dkgray); font-size: 0.74rem;
+  margin: 0.6rem 0 0; max-width: 32rem;
+}
+/* Event links stay the body colour: fifteen cyan links per player would shout
+   louder than the standings they annotate. */
+.ledger a { color: inherit; text-underline-offset: 2px; }
+.ledger a:hover, .ledger a:focus { background: var(--cyan); color: var(--black); }
 
 /* Player names link to their ATP profile. `color: inherit` matters: the row
    state (selected green, slam-pick yellow, alternate magenta) has to survive

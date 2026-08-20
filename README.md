@@ -5,8 +5,10 @@ Who would qualify for the ATP Finals in Turin if selection happened now?
 The app fetches the standings itself: parse Wikipedia's `<season> ATP Finals`
 article → validate the candidate → publish to SQLite (append-only, content-hash
 dedup, atomic pointer) → apply the versioned Turin qualification rule → serve
-from memory as server-rendered HTML. No JavaScript is served. It refreshes every
-six hours and never claims to be fresher than its source.
+from memory as server-rendered HTML. Every row expands to the tournaments
+behind its points. No JavaScript is served — the expansion is a native
+`<details>`. It refreshes every six hours and never claims to be fresher than
+its source.
 
 ## Run
 
@@ -39,6 +41,30 @@ tennisexplorer was evaluated and rejected — its terms (§2.11) explicitly forb
 scraping and aggregating. Wikipedia is also simply the better source: it carries
 a per-tournament points ledger and a citation for every announced qualification.
 
+### The per-player breakdown
+
+The article records each player's points as a grid — four Grand Slam columns,
+eight mandatory Masters 1000, up to six "best other" — and each row on the page
+expands to show it. Cells are identified by their **own wikilink, never by the
+column they sit in**: the rulebook lets a player swap up to three mandatory
+Masters results for other next-best ones, so a "Miami" column can legitimately
+hold an ASB Classic quarter-final. Reading the column would report tournaments
+the player never entered; reading the link names the event played and the slot
+it filled. Column *blocks* come from the header's `colspan` groups, so a season
+with a different number of "best other" columns still parses.
+
+A breakdown is shown only when its points sum to exactly the total the article
+states for that row — verified against all 20 rows of the live article. One that
+does not reconcile is dropped **on its own**: the row keeps its published total
+and offers no breakdown. That check is per row, not per article, so a cosmetic
+change upstream cannot withdraw the whole table for the sake of a secondary
+feature; the number of rows affected is logged instead.
+
+Two things it does not claim: it is not a full schedule (only a player's best
+results count, so the summary states both counts — "15 of 19 tournaments
+count"), and a mandatory event skipped (`A`, zero points) is never rendered like
+one not yet held (a dash, no points).
+
 Two consequences, both deliberate:
 
 - **This is weekly data, not live.** Wikipedia states the date its standings are
@@ -65,7 +91,8 @@ taken from any source.
 
 Routes: `/`, `/methodology`, `/robots.txt`, `/health/ready`, `/health/fresh`, `/static/app.css`.
 
-Responses are gzipped (13.8 KB → 2.4 KB) and carry
+Responses are gzipped (102.6 KB → 6.2 KB; the breakdowns are highly repetitive
+markup, so they cost about 3.8 KB on the wire) and carry
 `Cache-Control: max-age=120, stale-while-revalidate=600` plus an
 `X-Snapshot-Version` header. Shared links (Reddit, Discord, Slack) get an `og:`
 preview naming who holds seat 8 and who is first alternate.
@@ -85,11 +112,21 @@ non-monotonic points, garbage input never panics). Also: qualifier ingestion wit
 source URLs, both qualification branches, derived movement across two snapshots,
 storage dedup/versioning, and HTTP rendering.
 
+For the breakdown specifically: every row's ledger reconciles against its stated
+total (asserted for the fixture *and*, under `--ignored`, for the live article);
+a substituted Masters result names the event played and the slot it replaced;
+`A` and not-yet-played stay distinct; unused "best other" columns produce no
+entries; an inflated cell drops that one row's breakdown while leaving the row
+and every other breakdown intact; and the rendered page ships no `<script>`.
+
 ## Design notes
 
 - Identity is the Wikipedia article title; display names strip disambiguators.
 - A candidate failing validation is rejected wholesale — it can never replace the
   stored snapshot, so a bad edit upstream cannot corrupt the served page.
+- The exception is the points breakdown, which is validated per row: it is
+  secondary to the standings, so it fails alone rather than taking the table with
+  it. Every total on the page is one a reader can add up and check.
 - Official status is never inferred from points; it arrives with its citation.
 - The database is written by the worker and never sits on the request path;
   handlers read an `ArcSwap` snapshot.

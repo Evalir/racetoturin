@@ -153,6 +153,11 @@ mod tests {
             player_name: format!("Player {code}"),
             country: "USA".to_string(),
             race_points: points,
+            // The selection rule reads points and codes only; the ledger is
+            // presentation and plays no part in it.
+            results: Vec::new(),
+            tournaments_played: None,
+            titles: None,
         }
     }
 

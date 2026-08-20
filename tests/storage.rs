@@ -110,3 +110,66 @@ async fn empty_store_has_no_current_snapshot() {
     let store = Store::open(MEMORY).await.unwrap();
     assert!(store.load_current().await.unwrap().is_none());
 }
+
+/// The ledger is stored with its snapshot and must come back intact — including
+/// the two facts that are easy to lose in a round-trip: which slot a
+/// substituted result replaced, and the difference between an event skipped and
+/// one not yet played.
+#[tokio::test]
+async fn the_points_breakdown_survives_a_roundtrip() {
+    use racetoturin::model::Played;
+
+    let store = Store::open(MEMORY).await.unwrap();
+    let published = fixture_snapshot();
+    store.publish_if_changed(&published).await.unwrap();
+    let (_, loaded) = store.load_current().await.unwrap().unwrap();
+
+    for (before, after) in published.rows.iter().zip(&loaded.rows) {
+        assert_eq!(after.player_code, before.player_code);
+        assert_eq!(after.results.len(), before.results.len(), "{}", after.player_name);
+        assert_eq!(after.ledger_points(), after.race_points, "{}", after.player_name);
+        assert_eq!(after.tournaments_played, before.tournaments_played);
+        assert_eq!(after.titles, before.titles);
+    }
+
+    let shelton = loaded
+        .rows
+        .iter()
+        .find(|r| r.player_code == "Ben Shelton")
+        .unwrap();
+    let sub = shelton.results.iter().find(|r| r.substituted).unwrap();
+    assert_eq!(sub.slot_label, "Miami");
+    assert_eq!(sub.event_name, "ASB Classic");
+    assert_eq!(sub.event_code, "2026 ASB Classic – Men's singles");
+
+    let djokovic = loaded
+        .rows
+        .iter()
+        .find(|r| r.player_code == "Novak Djokovic")
+        .unwrap();
+    let played = |label: &str| {
+        djokovic
+            .results
+            .iter()
+            .find(|r| r.slot_label == label)
+            .unwrap()
+            .played
+    };
+    assert_eq!(played("Miami"), Played::Absent);
+    assert_eq!(played("Shanghai"), Played::Pending);
+}
+
+/// A row can be published with no breakdown — that is how an unreconciled
+/// ledger is represented — and must load back as a row without one, not fail.
+#[tokio::test]
+async fn a_row_without_a_breakdown_roundtrips() {
+    let store = Store::open(MEMORY).await.unwrap();
+    let mut snapshot = fixture_snapshot();
+    snapshot.rows[0].results.clear();
+    store.publish_if_changed(&snapshot).await.unwrap();
+
+    let (_, loaded) = store.load_current().await.unwrap().unwrap();
+    assert!(loaded.rows[0].results.is_empty());
+    assert_eq!(loaded.rows[0].race_points, 7950, "the total is still served");
+    assert!(!loaded.rows[1].results.is_empty(), "other rows keep theirs");
+}
