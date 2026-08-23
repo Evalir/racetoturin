@@ -17,6 +17,30 @@ any access control to get around that. Wikipedia is used instead because its con
 licensed for reuse, its API is intended for programmatic access, and it carries a per-tournament
 points ledger plus a citation for every announced qualification.</p>
 
+<h2>The per-player points breakdown</h2>
+<p>Each row in the table expands to show the tournaments that make up that player's race total.
+The article records those as a grid: four Grand Slam columns, eight mandatory Masters 1000 columns,
+and up to six “best other” results. Each cell is read from its own wikilink rather than from the
+column it sits in, which matters because the rulebook lets a player replace up to three mandatory
+Masters 1000 results with other next-best results. Where that has happened the breakdown names the
+tournament actually played and the mandatory slot it was counted in, in italics, as the article
+does — reading the column instead would report a tournament the player never entered.</p>
+
+<p>Two things the breakdown deliberately does not claim:</p>
+<ul>
+  <li><strong>It is not a full schedule.</strong> Only a player's best results count toward the
+  race, so the breakdown lists fewer tournaments than the season they have played. The summary line
+  states both numbers.</li>
+  <li><strong>A skipped event and an unplayed one are different.</strong> A mandatory event the
+  player did not enter is shown as <code>A</code> scoring zero; one that has not been held yet is
+  shown as a dash and scores nothing at all.</li>
+</ul>
+
+<p>A breakdown is shown only if its points add up to exactly the total the article states for that
+row. One that does not reconcile is dropped on its own: the row keeps the published total and simply
+offers no breakdown, so a displayed total is always one you can verify by adding up the lines. Each
+tournament links to the article for that draw.</p>
+
 <h2>Freshness — this page is not live</h2>
 <p>Wikipedia publishes these standings weekly and states the date they are current to. That stated
 date is what the page shows as the source date, and the page never claims to be more current than
@@ -57,6 +81,11 @@ computed and always labelled as such.</p>
 be present, ranks contiguous and unique, points non-increasing, and any announced qualifier must
 appear in the standings. A candidate that fails is rejected wholesale and can never replace the
 stored snapshot. Snapshots are append-only and immutable; corrections are new versions.</p>
+
+<p>The points breakdown is checked per row rather than per article, because it is secondary to the
+standings: a breakdown that does not reconcile is discarded while the row it belongs to is still
+published. That keeps a cosmetic change upstream from withdrawing the whole table, and the number of
+rows affected is logged so the failure cannot pass unnoticed.</p>
 
 <h2>Licensing</h2>
 <p>Standings data originates from Wikipedia and is available under

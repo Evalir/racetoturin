@@ -122,6 +122,27 @@ pub async fn ingest(config: &Config, store: &storage::Store) -> Result<web::AppS
         );
     }
 
+    // A ledger is dropped when it does not sum to its row's stated total, so a
+    // structural change upstream shows up as missing breakdowns rather than
+    // wrong ones. That degrades correctly but invisibly, so name the rows.
+    // Expect every row here once, immediately after deploying this feature onto
+    // an older database, until the first fetch republishes with ledgers.
+    let unreconciled: Vec<&str> = snapshot
+        .rows
+        .iter()
+        .filter(|r| r.results.is_empty())
+        .map(|r| r.player_name.as_str())
+        .collect();
+    if !unreconciled.is_empty() {
+        eprintln!(
+            "no points breakdown for {} of {} rows: {} — the per-tournament cells \
+             did not sum to the stated total, or the snapshot predates ledgers",
+            unreconciled.len(),
+            snapshot.rows.len(),
+            unreconciled.join(", "),
+        );
+    }
+
     let selection = qualification::select(&snapshot.rows, &curated);
     Ok(web::AppState {
         snapshot,

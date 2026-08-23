@@ -31,6 +31,7 @@
 
 <section aria-label="Race standings table">
   <h2>Official standings — top {{ rows.len() }}</h2>
+  {% if any_ledger %}<p class="hint">Every row expands to the tournaments behind its points.</p>{% endif %}
   <div class="table-wrap">
     <table class="race">
       <thead>
@@ -56,6 +57,29 @@
           <td class="num points">{{ row.points }}</td>
           <td class="num margin {{ row.margin_class }}">{{ row.margin }}</td>
         </tr>
+        {% if let Some(ledger) = row.ledger %}
+        <tr class="ledger-row">
+          <td colspan="6">
+            <details>
+              <summary><span class="sr-only">{{ ledger.sr_intro }}</span>{{ ledger.headline }}</summary>
+              <div class="ledger">
+                {%- for group in ledger.groups %}
+                <p class="lg-title">{{ group.title }}</p>
+                <ul class="lg-list">
+                  {%- for result in group.results %}
+                  <li class="{{ result.class }}"><span class="event">{% if let Some(url) = result.event_url %}<a href="{{ url }}">{{ result.event }}</a>{% else %}{{ result.event }}{% endif %}{% if !result.qualifier.is_empty() %} <span class="qual">{{ result.qualifier }}</span>{% endif %}</span><span class="rd">{{ result.round }}{% if !result.sr_note.is_empty() %}<span class="sr-only"> {{ result.sr_note }}</span>{% endif %}</span><span class="pt">{{ result.points }}</span></li>
+                  {%- endfor %}
+                </ul>
+                {%- endfor %}
+                <p class="lg-total"><span class="event">Total</span><span class="rd"></span><span class="pt">{{ ledger.total }}</span></p>
+                {%- if !ledger.substitution_note.is_empty() %}
+                <p class="lg-note">{{ ledger.substitution_note }}</p>
+                {%- endif %}
+              </div>
+            </details>
+          </td>
+        </tr>
+        {% endif %}
         {% if row.cut_strong_after %}
         <tr class="cutline strong"><td colspan="6">Top seven — qualify directly on race rank</td></tr>
         {% endif %}

@@ -8,7 +8,7 @@ use sqlx::{
 };
 use time::{format_description::well_known::Rfc3339, Date, OffsetDateTime};
 
-use crate::model::{OfficialQualifier, RaceRow, Snapshot};
+use crate::model::{OfficialQualifier, Played, RaceRow, Slot, Snapshot, TournamentResult};
 
 /// Pass as the db path to run against a throwaway in-memory database.
 pub const MEMORY: &str = ":memory:";
@@ -119,8 +119,9 @@ impl Store {
         for row in &snapshot.rows {
             sqlx::query(
                 "INSERT INTO snapshot_rows
-                   (snapshot_id, rank, player_code, player_name, country, race_points)
-                 VALUES (?, ?, ?, ?, ?, ?)",
+                   (snapshot_id, rank, player_code, player_name, country, race_points,
+                    tournaments_played, titles)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             )
             .bind(version)
             .bind(row.rank as i64)
@@ -128,8 +129,32 @@ impl Store {
             .bind(&row.player_name)
             .bind(&row.country)
             .bind(row.race_points as i64)
+            .bind(row.tournaments_played.map(i64::from))
+            .bind(row.titles.map(i64::from))
             .execute(&mut *tx)
             .await?;
+
+            for (ordinal, result) in row.results.iter().enumerate() {
+                sqlx::query(
+                    "INSERT INTO snapshot_results
+                       (snapshot_id, player_code, ordinal, slot, slot_label, played,
+                        event_code, event_name, round, points, substituted)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                )
+                .bind(version)
+                .bind(&row.player_code)
+                .bind(ordinal as i64)
+                .bind(result.slot.code())
+                .bind(&result.slot_label)
+                .bind(result.played.code())
+                .bind(&result.event_code)
+                .bind(&result.event_name)
+                .bind(&result.round)
+                .bind(result.points as i64)
+                .bind(result.substituted as i64)
+                .execute(&mut *tx)
+                .await?;
+            }
         }
 
         for q in &snapshot.qualifiers {
@@ -220,13 +245,63 @@ impl Store {
 
     async fn rows_of(&self, version: i64) -> Result<Vec<RaceRow>> {
         let rows = sqlx::query(
-            "SELECT rank, player_code, player_name, country, race_points
+            "SELECT rank, player_code, player_name, country, race_points,
+                    tournaments_played, titles
              FROM snapshot_rows WHERE snapshot_id = ? ORDER BY rank",
         )
         .bind(version)
         .fetch_all(&self.pool)
         .await?;
-        Ok(rows.iter().map(row_from_db).collect())
+        let mut ledgers = self.results_of(version).await?;
+        Ok(rows
+            .iter()
+            .map(|r| {
+                let mut row = row_from_db(r);
+                row.results = ledgers.remove(row.player_code.as_str()).unwrap_or_default();
+                row
+            })
+            .collect())
+    }
+
+    /// Every stored ledger for a snapshot, keyed by player and kept in the
+    /// source's column order.
+    async fn results_of(
+        &self,
+        version: i64,
+    ) -> Result<std::collections::HashMap<String, Vec<TournamentResult>>> {
+        let rows = sqlx::query(
+            "SELECT player_code, slot, slot_label, played, event_code, event_name,
+                    round, points, substituted
+             FROM snapshot_results WHERE snapshot_id = ? ORDER BY player_code, ordinal",
+        )
+        .bind(version)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let mut out: std::collections::HashMap<String, Vec<TournamentResult>> = Default::default();
+        for r in &rows {
+            let slot_code: String = r.get("slot");
+            let played_code: String = r.get("played");
+            // An unreadable code means a ledger written by a different build;
+            // skipping the entry breaks reconciliation, so the row shows no
+            // breakdown rather than a partial one.
+            let (Some(slot), Some(played)) =
+                (Slot::from_code(&slot_code), Played::from_code(&played_code))
+            else {
+                continue;
+            };
+            out.entry(r.get("player_code")).or_default().push(TournamentResult {
+                slot,
+                slot_label: r.get("slot_label"),
+                played,
+                event_code: r.get("event_code"),
+                event_name: r.get("event_name"),
+                round: r.get("round"),
+                points: r.get::<i64, _>("points").max(0) as u32,
+                substituted: r.get::<i64, _>("substituted") != 0,
+            });
+        }
+        Ok(out)
     }
 
     /// Ranks in the newest snapshot older than `version`, for derived movement.
@@ -263,5 +338,9 @@ fn row_from_db(r: &SqliteRow) -> RaceRow {
         player_name: r.get("player_name"),
         country: r.get("country"),
         race_points: as_u32(r.get::<i64, _>("race_points")),
+        // Filled in by `rows_of`, which reads every ledger in one query.
+        results: Vec::new(),
+        tournaments_played: r.get::<Option<i64>, _>("tournaments_played").map(as_u32),
+        titles: r.get::<Option<i64>, _>("titles").map(as_u32),
     }
 }

@@ -14,7 +14,7 @@ use tower_http::compression::CompressionLayer;
 
 use crate::{
     curated::Curated,
-    model::Snapshot,
+    model::{Played, RaceRow, Snapshot},
     qualification::{Provisional, SeatBasis, Selection},
 };
 
@@ -101,6 +101,37 @@ struct SummaryView {
     basis_sentence: String,
 }
 
+/// One line of a player's points breakdown.
+struct ResultView {
+    /// The event played, or the mandatory event that was not.
+    event: String,
+    /// Wikipedia article for the draw, so a reader can check the number.
+    event_url: Option<String>,
+    /// Visible qualifier after the event name: "for Miami" on a substitution.
+    qualifier: String,
+    round: String,
+    points: String,
+    /// Spoken in place of a symbol that is not self-explanatory.
+    sr_note: String,
+    class: String,
+}
+
+struct LedgerGroup {
+    title: String,
+    results: Vec<ResultView>,
+}
+
+struct LedgerView {
+    /// "15 of 19 tournaments count · 1 title"
+    headline: String,
+    /// Names the player: a screen reader meets twelve of these summaries.
+    sr_intro: String,
+    groups: Vec<LedgerGroup>,
+    total: String,
+    /// Set only when some result stands in for a mandatory Masters 1000.
+    substitution_note: String,
+}
+
 struct RowView {
     rank: u32,
     movement: String,
@@ -118,6 +149,9 @@ struct RowView {
     margin: String,
     margin_class: String,
     row_class: String,
+    /// The per-tournament breakdown, absent when the source's cells did not
+    /// reconcile against this row's total.
+    ledger: Option<LedgerView>,
     cut_strong_after: bool,
     cut_ordinary_after: bool,
 }
@@ -133,6 +167,10 @@ struct IndexPage {
     fresh: FreshView,
     summary: SummaryView,
     rows: Vec<RowView>,
+    /// False when no row carries a breakdown — serving a snapshot written
+    /// before ledgers existed, say — so the page does not offer an expansion
+    /// that is not there.
+    any_ledger: bool,
     slam_provision_active: bool,
 }
 
@@ -309,6 +347,114 @@ fn build_summary(state: &AppState) -> SummaryView {
     }
 }
 
+fn plural(n: u32, singular: &str) -> String {
+    if n == 1 {
+        format!("1 {singular}")
+    } else {
+        format!("{n} {singular}s")
+    }
+}
+
+fn wikipedia_url(article: &str) -> String {
+    format!("https://en.wikipedia.org/wiki/{}", article.replace(' ', "_"))
+}
+
+/// The expandable per-player breakdown. Returns None when the row carries no
+/// ledger, which is how a breakdown that failed to reconcile is suppressed.
+fn build_ledger(row: &RaceRow) -> Option<LedgerView> {
+    if row.results.is_empty() {
+        return None;
+    }
+
+    let counting = row.counting_results() as u32;
+    // Only a player's best results count, so the ledger is routinely shorter
+    // than the season they played. Say so in the summary rather than letting
+    // the list imply a full schedule.
+    let mut headline = match row.tournaments_played {
+        Some(played) if played >= counting => {
+            format!("{counting} of {played} tournaments count")
+        }
+        _ => plural(counting, "counting result"),
+    };
+    if let Some(titles) = row.titles {
+        headline.push_str(" · ");
+        headline.push_str(&match titles {
+            0 => "no titles".to_string(),
+            n => plural(n, "title"),
+        });
+    }
+
+    let mut groups: Vec<LedgerGroup> = Vec::new();
+    for result in &row.results {
+        let view = match result.played {
+            // A mandatory column's label is the name the reader knows —
+            // "Indian Wells", not "BNP Paribas Open" — so prefer it. On a
+            // substitution it names the event *replaced*, so the event played
+            // has to be named instead, with the slot as a qualifier.
+            Played::Result => ResultView {
+                event: match (result.substituted, result.slot_label.is_empty()) {
+                    (false, false) => result.slot_label.clone(),
+                    _ => result.event_name.clone(),
+                },
+                event_url: Some(wikipedia_url(&result.event_code)),
+                qualifier: if result.substituted && !result.slot_label.is_empty() {
+                    format!("for {}", result.slot_label)
+                } else {
+                    String::new()
+                },
+                round: result.round.clone(),
+                points: thousands(result.points),
+                sr_note: String::new(),
+                class: if result.substituted { "sub" } else { "" }.to_string(),
+            },
+            // A mandatory event that has happened and was skipped scores zero;
+            // one that has not happened yet scores nothing at all. Different
+            // facts, so they never render alike.
+            Played::Absent => ResultView {
+                event: result.slot_label.clone(),
+                event_url: None,
+                qualifier: String::new(),
+                round: "A".to_string(),
+                points: "0".to_string(),
+                sr_note: "did not play".to_string(),
+                class: "absent".to_string(),
+            },
+            Played::Pending => ResultView {
+                event: result.slot_label.clone(),
+                event_url: None,
+                qualifier: String::new(),
+                round: "–".to_string(),
+                points: "–".to_string(),
+                sr_note: "not played yet".to_string(),
+                class: "pending".to_string(),
+            },
+        };
+        match groups.last_mut() {
+            Some(group) if group.title == result.slot.title() => group.results.push(view),
+            _ => groups.push(LedgerGroup {
+                title: result.slot.title().to_string(),
+                results: vec![view],
+            }),
+        }
+    }
+
+    Some(LedgerView {
+        headline,
+        sr_intro: format!("Points breakdown for {}: ", row.player_name),
+        groups,
+        // Equal to the row's total by construction — a ledger is only kept
+        // when it reconciles — so showing it lets a reader add up and check.
+        total: thousands(row.ledger_points()),
+        substitution_note: if row.results.iter().any(|r| r.substituted) {
+            "Italicised results were counted in place of a mandatory Masters 1000, \
+             which the rulebook allows for up to three of them."
+                .to_string()
+        } else {
+            String::new()
+        },
+    })
+}
+
 fn build_rows(state: &AppState) -> Vec<RowView> {
     let officials: std::collections::HashSet<&str> = state
         .snapshot
@@ -345,7 +491,14 @@ fn build_rows(state: &AppState) -> Vec<RowView> {
                 None => ("–".to_string(), ""),
             };
 
+            let ledger = build_ledger(row);
+
             let mut classes: Vec<&str> = Vec::new();
+            // The breakdown renders as its own row directly beneath, so the
+            // pair needs one closing border, not two.
+            if ledger.is_some() {
+                classes.push("has-ledger");
+            }
             match provisional {
                 Provisional::TopSeven => classes.push("selected"),
                 Provisional::Eighth => {
@@ -374,6 +527,7 @@ fn build_rows(state: &AppState) -> Vec<RowView> {
                 margin,
                 margin_class: margin_class.to_string(),
                 row_class: classes.join(" "),
+                ledger,
                 cut_strong_after: false,
                 cut_ordinary_after: false,
             }
@@ -453,6 +607,7 @@ fn render<T: Template>(template: &T, cache_control: &'static str, version: i64) 
 async fn index(State(shared): State<SharedState>) -> Response {
     let state = shared.load();
     let summary = build_summary(&state);
+    let rows = build_rows(&state);
     let page = IndexPage {
         season: state.curated.season,
         css_version: css_version(),
@@ -460,7 +615,8 @@ async fn index(State(shared): State<SharedState>) -> Response {
         summary_text: shared_link_text(&state, &summary),
         fresh: build_fresh(&state, OffsetDateTime::now_utc()),
         summary,
-        rows: build_rows(&state),
+        any_ledger: rows.iter().any(|r| r.ledger.is_some()),
+        rows,
         slam_provision_active: state.selection.eighth_basis == SeatBasis::GrandSlamChampion,
     };
     render(&page, CACHE_PAGE, state.version)

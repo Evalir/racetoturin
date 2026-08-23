@@ -225,3 +225,135 @@ async fn a_player_with_no_atp_id_is_rendered_unlinked() {
         assert!(!body.contains(bad), "malformed profile URL in page: {bad}");
     }
 }
+
+/// The breakdown expands with no JavaScript at all: a native <details> per
+/// player. The whole point of the page is that it ships no script, so a
+/// regression that reached for one has to fail here.
+#[tokio::test]
+async fn the_points_breakdown_expands_without_javascript() {
+    let (status, body) = get_body(app("live/curated.toml").await, "/").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(!body.contains("<script"), "the page must ship no script");
+    assert!(!body.contains("onclick"), "no inline handlers either");
+
+    // One disclosure per player. The qualification-rules panel carries a class,
+    // so this counts ledgers only.
+    assert_eq!(body.matches("<details>").count(), 12);
+
+    // The summary states how much of the season the breakdown accounts for,
+    // rather than implying it lists everything the player entered.
+    assert!(body.contains("15 of 19 tournaments count · 1 title"));
+    assert!(body.contains("6 of 6 tournaments count · no titles"));
+    // And it names the player for a screen reader meeting twelve of these.
+    assert!(body.contains("Points breakdown for Flavio Cobolli:"));
+
+    // A result, its round, and a link to the draw it came from.
+    assert!(body.contains(">Australian Open</a>"));
+    assert!(body.contains("https://en.wikipedia.org/wiki/2026_Australian_Open"));
+    assert!(body.contains(">1,300</span>"));
+}
+
+/// A next-best result counted in a mandatory Masters slot has to name the event
+/// actually played and the slot it replaced. Reporting the column's own event
+/// would claim a tournament the player never entered.
+#[tokio::test]
+async fn a_substituted_masters_result_is_labelled_as_one() {
+    let (_, body) = get_body(app("live/curated.toml").await, "/").await;
+    assert!(body.contains(">ASB Classic</a> <span class=\"qual\">for Miami</span>"));
+    assert!(body.contains("<li class=\"sub\">"));
+    assert!(body.contains("counted in place of a mandatory Masters 1000"));
+    // The column is Miami's, but Shelton played no Miami: it must not appear as
+    // a result of his.
+    assert!(!body.contains(">Miami Open</a>"));
+}
+
+/// Skipping an event and waiting for one to be played are different facts, and
+/// a symbol alone does not convey either to a screen reader.
+#[tokio::test]
+async fn skipped_and_unplayed_events_read_differently() {
+    let (_, body) = get_body(app("live/curated.toml").await, "/").await;
+    assert!(body.contains("did not play"));
+    assert!(body.contains("not played yet"));
+    assert!(body.contains("<li class=\"absent\">"));
+    assert!(body.contains("<li class=\"pending\">"));
+}
+
+/// The breakdown is shown only when it accounts for the total exactly, so the
+/// displayed total is always one the reader can verify by adding up the rows.
+#[tokio::test]
+async fn every_displayed_breakdown_adds_up_to_its_total() {
+    let (_, body) = get_body(app("live/curated.toml").await, "/").await;
+    let mut checked = 0;
+    for block in body.split("<details>").skip(1) {
+        let Some(end) = block.find("</details>") else {
+            continue;
+        };
+        let block = &block[..end];
+        if !block.contains("lg-total") {
+            continue; // the qualification-rules disclosure, not a ledger
+        }
+        let sum: u32 = block
+            .split("<span class=\"pt\">")
+            .skip(1)
+            .filter_map(|cell| cell.split('<').next())
+            .filter(|cell| !cell.contains('–'))
+            .filter_map(|cell| cell.replace(',', "").parse::<u32>().ok())
+            .sum();
+        let total: u32 = block
+            .rsplit("<span class=\"pt\">")
+            .next()
+            .and_then(|c| c.split('<').next())
+            .and_then(|c| c.replace(',', "").parse().ok())
+            .expect("a ledger states a total");
+        // The stated total is itself one of the `pt` cells, so the entries sum
+        // to exactly half of what the scan collected.
+        assert_eq!(sum, total * 2, "a breakdown does not add up to its total");
+        checked += 1;
+    }
+    assert_eq!(checked, 12, "every player should carry a breakdown");
+}
+
+/// A snapshot stored before ledgers existed has no breakdowns, and the page
+/// must not advertise an expansion that is not there — while still serving
+/// every row and every point total.
+#[tokio::test]
+async fn a_snapshot_without_breakdowns_still_serves_and_promises_nothing() {
+    use racetoturin::{model::Snapshot, source, storage::Store};
+
+    let mut snapshot: Snapshot = source::parse(
+        &std::fs::read_to_string(root("fixtures/race.wikitext")).unwrap(),
+        "fixtures/race.wikitext",
+        2026,
+    )
+    .unwrap();
+    for row in &mut snapshot.rows {
+        row.results.clear(); // as a pre-ledger snapshot loads back
+    }
+
+    let store = Store::open(racetoturin::storage::MEMORY).await.unwrap();
+    store.publish_if_changed(&snapshot).await.unwrap();
+    let (version, loaded) = store.load_current().await.unwrap().unwrap();
+    let curated = racetoturin::curated::Curated::load(&root("live/curated.toml")).unwrap();
+    let selection = racetoturin::qualification::select(&loaded.rows, &curated);
+    let state = racetoturin::web::AppState {
+        snapshot: loaded,
+        version,
+        curated,
+        selection,
+        stale_after: Duration::from_secs(691_200),
+        check_stale_after: Duration::from_secs(86_400),
+        base_url: "https://racetotur.in".to_string(),
+    };
+    let app = racetoturin::web::router(Arc::new(ArcSwap::from_pointee(state)));
+
+    let (status, body) = get_body(app, "/").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(!body.contains("<details>"), "no ledger, so no disclosure");
+    assert!(
+        !body.contains("Every row expands"),
+        "the page must not offer an expansion it cannot deliver"
+    );
+    // The standings themselves are untouched: this is a secondary feature.
+    assert!(body.contains("7,950"));
+    assert!(body.contains("Novak Djokovic — by race rank"));
+}
