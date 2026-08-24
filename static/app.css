@@ -1,67 +1,134 @@
-/* MS-DOS look: CGA 16-color palette on black, monospace throughout.
-   One deliberate dark theme — this page does not follow the OS scheme. */
+/* MS-DOS look, adapted into light and dark palettes. Light is the fallback;
+   an unset data-theme follows the OS, while an explicit attribute wins. */
 :root {
-  --black: #000000;
-  --gray: #aaaaaa;
-  --dkgray: #555555;
-  --white: #ffffff;
-  --green: #55ff55;
-  --cyan: #55ffff;
-  --yellow: #ffff55;
-  --red: #ff5555;
-  --magenta: #ff55ff;
+  color-scheme: light;
+  --page-bg: #fbfaf2;
+  --text: #343432;
+  --muted: #62615d;
+  --border: #8a8982;
+  --strong: #0c0c0c;
+  --positive: #006b32;
+  --link: #006875;
+  --focus: #765d00;
+  --danger: #b21f2d;
+  --special: #87298b;
+  --accent-ink: #ffffff;
+  --chrome-bg: #242424;
+  --chrome-ink: #fbfaf2;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page-bg: #000000;
+  --text: #aaaaaa;
+  --muted: #888888;
+  --border: #666666;
+  --strong: #ffffff;
+  --positive: #55ff55;
+  --link: #55ffff;
+  --focus: #ffff55;
+  --danger: #ff5555;
+  --special: #ff55ff;
+  --accent-ink: #000000;
+  --chrome-bg: #aaaaaa;
+  --chrome-ink: #000000;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --page-bg: #000000;
+    --text: #aaaaaa;
+    --muted: #888888;
+    --border: #666666;
+    --strong: #ffffff;
+    --positive: #55ff55;
+    --link: #55ffff;
+    --focus: #ffff55;
+    --danger: #ff5555;
+    --special: #ff55ff;
+    --accent-ink: #000000;
+    --chrome-bg: #aaaaaa;
+    --chrome-ink: #000000;
+  }
 }
 
 * { box-sizing: border-box; }
 body {
   margin: 0;
-  background: var(--black);
-  color: var(--gray);
+  background: var(--page-bg);
+  color: var(--text);
   font: 15px/1.45 ui-monospace, Menlo, Consolas, "Courier New", monospace;
 }
-::selection { background: var(--gray); color: var(--black); }
+::selection { background: var(--text); color: var(--page-bg); }
 main { max-width: 66rem; margin: 0 auto; padding: 0 1rem 3rem; }
 
-a { color: var(--cyan); text-decoration: underline; }
-a:hover, a:focus { background: var(--cyan); color: var(--black); outline: none; }
-:focus-visible { outline: 2px solid var(--yellow); outline-offset: 1px; }
+a { color: var(--link); text-decoration: underline; }
+a:hover, a:focus { background: var(--link); color: var(--accent-ink); outline: none; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 
-h1, h2 { color: var(--white); text-transform: uppercase; letter-spacing: 0.08em; }
+h1, h2 { color: var(--strong); text-transform: uppercase; letter-spacing: 0.08em; }
 h1 { font-size: 1.35rem; margin: 1.25rem 0 0.25rem; }
-h1::before, h2::before { content: "▌"; color: var(--yellow); margin-right: 0.4rem; }
+h1::before, h2::before { content: "▌"; color: var(--focus); margin-right: 0.4rem; }
 h2 { font-size: 1rem; margin: 1.75rem 0 0.5rem; }
-.lede { color: var(--dkgray); margin-top: 0; }
+.lede { color: var(--muted); margin-top: 0; }
 
 .skip {
   position: absolute; left: -999px; top: 0;
-  background: var(--yellow); color: var(--black); padding: 0.5rem 1rem;
+  background: var(--focus); color: var(--accent-ink); padding: 0.5rem 1rem;
 }
 .skip:focus { left: 0; z-index: 10; }
 
 /* Inverse-video title bar, Norton Commander style. */
-header.site { background: var(--gray); color: var(--black); padding: 0.35rem 1rem; }
+header.site { background: var(--chrome-bg); color: var(--chrome-ink); }
+.site-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  max-width: 66rem; margin: 0 auto; padding: 0.35rem 1rem;
+}
 header.site a, footer.site a { color: inherit; }
-header.site a:hover, header.site a:focus { background: var(--black); color: var(--gray); }
+header.site a:hover, header.site a:focus { background: var(--chrome-ink); color: var(--chrome-bg); }
 .brand { margin: 0; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }
 
+.theme-picker { display: flex; align-items: center; gap: 0.5rem; }
+.theme-picker[hidden] { display: none; }
+.theme-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; }
+.theme-options { display: inline-flex; border: 1px solid currentColor; }
+.theme-options button {
+  appearance: none; border: 0; border-left: 1px solid currentColor;
+  border-radius: 0; background: transparent; color: inherit; cursor: pointer;
+  padding: 0.08rem 0.42rem;
+  font: 700 0.72rem/1.45 ui-monospace, Menlo, Consolas, "Courier New", monospace;
+  text-transform: uppercase;
+}
+.theme-options button:first-child { border-left: 0; }
+.theme-options button:hover { text-decoration: underline; }
+.theme-options button[aria-pressed="true"] {
+  background: var(--chrome-ink); color: var(--chrome-bg);
+}
+.theme-options button:focus-visible {
+  position: relative; z-index: 1;
+  outline: 2px solid var(--strong); outline-offset: 1px;
+  box-shadow: 0 0 0 3px var(--page-bg);
+}
+
 footer.site {
-  border-top: 1px solid var(--dkgray);
+  border-top: 1px solid var(--border);
   max-width: 66rem; margin: 0 auto; padding: 0.5rem 1rem;
-  color: var(--dkgray); font-size: 0.85rem;
+  color: var(--muted); font-size: 0.85rem;
 }
 
 .freshness {
-  border: 3px double var(--dkgray);
+  border: 3px double var(--border);
   padding: 0.5rem 0.75rem; margin: 1rem 0; font-size: 0.85rem;
 }
 .freshness p { margin: 0.15rem 0; }
 /* The source URL is one long unbreakable token; without this it forces the
    whole page wider than a phone viewport. */
 .provenance { overflow-wrap: anywhere; }
-.freshness.stale { border-color: var(--red); }
-.freshness.stale .badge.acc { background: var(--red); color: var(--black); }
-.stale-note { color: var(--red); text-transform: uppercase; }
-.provenance { color: var(--dkgray); font-size: 0.8rem; }
+.freshness.stale { border-color: var(--danger); }
+.freshness.stale .badge.acc { background: var(--danger); color: var(--accent-ink); }
+.stale-note { color: var(--danger); text-transform: uppercase; }
+.provenance { color: var(--muted); font-size: 0.8rem; }
 
 .badge {
   display: inline-block; font-size: 0.78rem; font-weight: 700;
@@ -69,54 +136,54 @@ footer.site {
 }
 .badge::before { content: "["; }
 .badge::after { content: "]"; }
-.badge.acc, .badge.official { background: var(--green); color: var(--black); }
-.badge.st-in { color: var(--green); }
-.badge.st-slam { color: var(--yellow); }
-.badge.st-alt { color: var(--magenta); }
-.badge.st-out { color: var(--red); }
+.badge.acc, .badge.official { background: var(--positive); color: var(--accent-ink); }
+.badge.st-in { color: var(--positive); }
+.badge.st-slam { color: var(--focus); }
+.badge.st-alt { color: var(--special); }
+.badge.st-out { color: var(--danger); }
 
-.summary { border: 3px double var(--gray); padding: 0.25rem 0.75rem 0.75rem; }
+.summary { border: 3px double var(--text); padding: 0.25rem 0.75rem 0.75rem; }
 .seats { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0.5rem; margin: 0.5rem 0; }
-.seats dt { font-size: 0.75rem; text-transform: uppercase; color: var(--yellow); }
-.seats dd { margin: 0; color: var(--white); }
-.basis { font-size: 0.9rem; color: var(--gray); margin-bottom: 0.25rem; }
+.seats dt { font-size: 0.75rem; text-transform: uppercase; color: var(--focus); }
+.seats dd { margin: 0; color: var(--strong); }
+.basis { font-size: 0.9rem; color: var(--text); margin-bottom: 0.25rem; }
 
 /* The load-bearing rule for narrow screens: the standings table is allowed to
    be wider than the viewport and scroll horizontally *here*, which is what
    keeps the page itself from scrolling. Do not remove. */
 .table-wrap { overflow-x: auto; max-width: 100%; }
 table.race { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
-table.race th, table.race td { padding: 0.25rem 0.5rem; border-bottom: 1px solid var(--dkgray); }
+table.race th, table.race td { padding: 0.25rem 0.5rem; border-bottom: 1px solid var(--border); }
 table.race th {
-  font-size: 0.78rem; text-transform: uppercase; color: var(--yellow);
-  text-align: right; border-bottom: 1px solid var(--gray);
+  font-size: 0.78rem; text-transform: uppercase; color: var(--focus);
+  text-align: right; border-bottom: 1px solid var(--text);
 }
 table.race th.left { text-align: left; }
 td.num { text-align: right; font-variant-numeric: tabular-nums; }
 td.left { text-align: left; }
-td.points { font-weight: 700; color: var(--white); }
-td.move.up { color: var(--green); }
-td.move.down { color: var(--red); }
-td.move.flat { color: var(--dkgray); }
-.cc { font-size: 0.78rem; color: var(--dkgray); }
-td.margin.pos { color: var(--green); }
-td.margin.neg { color: var(--red); }
+td.points { font-weight: 700; color: var(--strong); }
+td.move.up { color: var(--positive); }
+td.move.down { color: var(--danger); }
+td.move.flat { color: var(--muted); }
+.cc { font-size: 0.78rem; color: var(--muted); }
+td.margin.pos { color: var(--positive); }
+td.margin.neg { color: var(--danger); }
 
-tr.selected td.player { color: var(--green); }
-tr.slam-pick td.player { color: var(--yellow); font-weight: 700; }
-tr.alternate td.player { color: var(--magenta); }
-tr.withdrawn { color: var(--dkgray); text-decoration: line-through; }
+tr.selected td.player { color: var(--positive); }
+tr.slam-pick td.player { color: var(--focus); font-weight: 700; }
+tr.alternate td.player { color: var(--special); }
+tr.withdrawn { color: var(--muted); text-decoration: line-through; }
 
 tr.cutline td {
-  border-bottom: 3px double var(--red);
-  color: var(--red); font-size: 0.75rem; font-weight: 700;
+  border-bottom: 3px double var(--danger);
+  color: var(--danger); font-size: 0.75rem; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.15em;
   text-align: center; padding: 0.1rem;
 }
 tr.cutline.strong td { border-bottom-style: solid; }
 
 .rules { margin-top: 1.5rem; }
-.rules summary { cursor: pointer; font-weight: 700; color: var(--cyan); text-transform: uppercase; }
+.rules summary { cursor: pointer; font-weight: 700; color: var(--link); text-transform: uppercase; }
 
 .sr-only {
   position: absolute; width: 1px; height: 1px; overflow: hidden;
@@ -134,6 +201,9 @@ tr.cutline.strong td { border-bottom-style: solid; }
    inside .table-wrap when it needs to; tightening type and spacing just means
    less scrolling. The page itself must never scroll — see .table-wrap. */
 @media (max-width: 560px) {
+  .site-bar { gap: 0.5rem; padding-inline: 0.5rem; }
+  .theme-label { display: none; }
+  .theme-options button { padding-inline: 0.3rem; font-size: 0.68rem; }
   table.race { font-size: 0.8rem; }
   table.race th, table.race td { padding: 0.3rem 0.25rem; }
   table.race th { letter-spacing: 0; }
@@ -147,34 +217,34 @@ tr.cutline.strong td { border-bottom-style: solid; }
 /* Says once, above the table, what the twelve disclosure strips below are for;
    repeating the word "breakdown" in every summary would cost more and read
    worse. */
-.hint { color: var(--dkgray); font-size: 0.8rem; margin: 0 0 0.4rem; }
+.hint { color: var(--muted); font-size: 0.8rem; margin: 0 0 0.4rem; }
 
-/* Per-player points breakdown. No JavaScript is served, so disclosure is the
-   native <details>; it lives in a full-width row beneath its player because a
-   <details> cannot wrap a <tr>. The player row drops its bottom border so the
-   pair closes with one line instead of two. */
+/* Per-player points breakdown. Disclosure remains a native <details>; it lives
+   in a full-width row beneath its player because a <details> cannot wrap a
+   <tr>. The player row drops its bottom border so the pair closes with one line
+   instead of two. */
 tr.has-ledger > td { border-bottom: none; }
 tr.ledger-row > td { padding: 0 0.5rem 0.4rem; }
 tr.ledger-row summary {
   list-style: none;
   cursor: pointer;
-  color: var(--dkgray);
+  color: var(--muted);
   font-size: 0.76rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 0.1rem 0;
 }
 tr.ledger-row summary::-webkit-details-marker { display: none; }
-tr.ledger-row summary::before { content: "\25B8"; color: var(--yellow); margin-right: 0.35rem; }
+tr.ledger-row summary::before { content: "\25B8"; color: var(--focus); margin-right: 0.35rem; }
 tr.ledger-row details[open] > summary::before { content: "\25BE"; }
-tr.ledger-row summary:hover { color: var(--cyan); }
+tr.ledger-row summary:hover { color: var(--link); }
 
 /* Capped width so the ledger reads as a column on a wide screen, and a grid
    rather than a nested table so it wraps instead of widening .race. */
 .ledger { font-size: 0.82rem; padding: 0.15rem 0 0.5rem 1.1rem; max-width: 32rem; }
 .lg-title {
   margin: 0.5rem 0 0.15rem;
-  color: var(--yellow); font-size: 0.7rem;
+  color: var(--focus); font-size: 0.7rem;
   text-transform: uppercase; letter-spacing: 0.08em;
 }
 .lg-list { list-style: none; margin: 0; padding: 0; }
@@ -189,24 +259,24 @@ tr.ledger-row summary:hover { color: var(--cyan); }
    Masters 1000; keeping that convention means the footnote explains a mark the
    reader can already see. */
 .lg-list li.sub .event { font-style: italic; }
-.lg-list .qual { color: var(--dkgray); font-size: 0.74rem; font-style: normal; }
-.lg-list li.absent, .lg-list li.pending { color: var(--dkgray); }
+.lg-list .qual { color: var(--muted); font-size: 0.74rem; font-style: normal; }
+.lg-list li.absent, .lg-list li.pending { color: var(--muted); }
 .lg-total {
   margin-top: 0.4rem; padding-top: 0.15rem;
-  border-top: 1px solid var(--dkgray);
-  color: var(--white); font-weight: 700;
+  border-top: 1px solid var(--border);
+  color: var(--strong); font-weight: 700;
 }
 .lg-note {
-  color: var(--dkgray); font-size: 0.74rem;
+  color: var(--muted); font-size: 0.74rem;
   margin: 0.6rem 0 0; max-width: 32rem;
 }
-/* Event links stay the body colour: fifteen cyan links per player would shout
+/* Event links stay the body colour: fifteen accent links per player would shout
    louder than the standings they annotate. */
 .ledger a { color: inherit; text-underline-offset: 2px; }
-.ledger a:hover, .ledger a:focus { background: var(--cyan); color: var(--black); }
+.ledger a:hover, .ledger a:focus { background: var(--link); color: var(--accent-ink); }
 
 /* Player names link to their ATP profile. `color: inherit` matters: the row
-   state (selected green, slam-pick yellow, alternate magenta) has to survive
-   the link, so the anchor must not take the global cyan. */
+   state (selected, slam-pick, alternate) has to survive the link, so the
+   anchor must not take the global link colour. */
 td.player a { color: inherit; text-underline-offset: 2px; }
-td.player a:hover, td.player a:focus { background: var(--cyan); color: var(--black); }
+td.player a:hover, td.player a:focus { background: var(--link); color: var(--accent-ink); }

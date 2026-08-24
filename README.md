@@ -6,9 +6,9 @@ The app fetches the standings itself: parse Wikipedia's `<season> ATP Finals`
 article → validate the candidate → publish to SQLite (append-only, content-hash
 dedup, atomic pointer) → apply the versioned Turin qualification rule → serve
 from memory as server-rendered HTML. Every row expands to the tournaments
-behind its points. No JavaScript is served — the expansion is a native
-`<details>`. It refreshes every six hours and never claims to be fresher than
-its source.
+behind its points through a native `<details>`, independent of JavaScript. The
+only script stores the System/Light/Dark theme choice. The app refreshes every
+six hours and never claims to be fresher than its source.
 
 ## Run
 
@@ -89,7 +89,8 @@ taken from any source.
 | `RTT_BIND` | `127.0.0.1:8080` | Listen address (`0.0.0.0:8080` in Docker) |
 | `RTT_BASE_URL` | `https://racetotur.in` | Origin for canonical and `og:` URLs |
 
-Routes: `/`, `/methodology`, `/robots.txt`, `/health/ready`, `/health/fresh`, `/static/app.css`.
+Routes: `/`, `/methodology`, `/robots.txt`, `/health/ready`, `/health/fresh`,
+`/static/app.css`, `/static/theme.js`.
 
 Responses are gzipped (102.6 KB → 6.2 KB; the breakdowns are highly repetitive
 markup, so they cost about 3.8 KB on the wire) and carry
@@ -117,7 +118,8 @@ total (asserted for the fixture *and*, under `--ignored`, for the live article);
 a substituted Masters result names the event played and the slot it replaced;
 `A` and not-yet-played stay distinct; unused "best other" columns produce no
 entries; an inflated cell drops that one row's breakdown while leaving the row
-and every other breakdown intact; and the rendered page ships no `<script>`.
+and every other breakdown intact; and the breakdown remains a native
+`<details>` interaction independent of the small theme-selection script.
 
 ## Design notes
 

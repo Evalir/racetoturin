@@ -42,6 +42,7 @@ pub fn router(state: SharedState) -> Router {
         .route("/health/fresh", get(health_fresh))
         .route("/robots.txt", get(robots))
         .route("/static/app.css", get(app_css))
+        .route("/static/theme.js", get(theme_js))
         // Compression matters more than it looks: the page is mostly repeated
         // markup, so it shrinks ~4x, which is the whole egress bill under load.
         .layer(CompressionLayer::new())
@@ -53,11 +54,12 @@ pub fn router(state: SharedState) -> Router {
 const CACHE_PAGE: &str = "public, max-age=120, stale-while-revalidate=600";
 /// The methodology page only changes when the code does.
 const CACHE_STATIC: &str = "public, max-age=3600";
-/// Safe to cache forever because the URL carries a content hash: a changed
-/// stylesheet is a different URL.
+/// Safe to cache forever because each asset URL carries a content hash: changed
+/// content gets a different URL.
 const CACHE_IMMUTABLE: &str = "public, max-age=31536000, immutable";
 
 const APP_CSS: &str = include_str!("../static/app.css");
+const THEME_JS: &str = include_str!("../static/theme.js");
 
 /// Content hash of the stylesheet, used to bust its cache. Markup and styles
 /// ship together, so a cached-but-stale stylesheet renders new markup wrong —
@@ -66,6 +68,16 @@ pub fn css_version() -> &'static str {
     static VERSION: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     VERSION.get_or_init(|| {
         let digest = <sha2::Sha256 as sha2::Digest>::digest(APP_CSS.as_bytes());
+        format!("{digest:x}")[..12].to_string()
+    })
+}
+
+/// Content hash for the theme controller, for the same immutable-cache
+/// contract as the stylesheet.
+pub fn theme_version() -> &'static str {
+    static VERSION: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    VERSION.get_or_init(|| {
+        let digest = <sha2::Sha256 as sha2::Digest>::digest(THEME_JS.as_bytes());
         format!("{digest:x}")[..12].to_string()
     })
 }
@@ -161,6 +173,7 @@ struct RowView {
 struct IndexPage {
     season: u16,
     css_version: &'static str,
+    theme_version: &'static str,
     canonical: String,
     /// Doubles as meta description and shared-link preview text.
     summary_text: String,
@@ -179,6 +192,7 @@ struct IndexPage {
 struct MethodologyPage {
     season: u16,
     css_version: &'static str,
+    theme_version: &'static str,
     canonical: String,
     summary_text: String,
     notice: String,
@@ -611,6 +625,7 @@ async fn index(State(shared): State<SharedState>) -> Response {
     let page = IndexPage {
         season: state.curated.season,
         css_version: css_version(),
+        theme_version: theme_version(),
         canonical: state.base_url.clone(),
         summary_text: shared_link_text(&state, &summary),
         fresh: build_fresh(&state, OffsetDateTime::now_utc()),
@@ -627,6 +642,7 @@ async fn methodology(State(shared): State<SharedState>) -> Response {
     let page = MethodologyPage {
         season: state.curated.season,
         css_version: css_version(),
+        theme_version: theme_version(),
         canonical: format!("{}/methodology", state.base_url),
         summary_text: "Where racetotur.in's standings come from, how the Turin \
                        qualification rule is applied, and what the freshness labels mean."
@@ -681,5 +697,18 @@ async fn app_css() -> impl IntoResponse {
             (header::CACHE_CONTROL, CACHE_IMMUTABLE),
         ],
         APP_CSS,
+    )
+}
+
+async fn theme_js() -> impl IntoResponse {
+    (
+        [
+            (
+                header::CONTENT_TYPE,
+                "application/javascript; charset=utf-8",
+            ),
+            (header::CACHE_CONTROL, CACHE_IMMUTABLE),
+        ],
+        THEME_JS,
     )
 }
