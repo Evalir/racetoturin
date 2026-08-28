@@ -196,6 +196,8 @@ standings are; since it publishes weekly, several days old is *normal* and only
 broken on our side. Do not set the source threshold to a day; the page would
 declare itself stale every day while being perfectly current.
 
-The homepage shows each condition separately: "Stale: showing the last verified
-snapshot" for an old source, and "Last successful update N ago — automatic
-collection may be failing" for a broken fetcher.
+Only the source condition is user-facing: the homepage shows "Stale: showing
+the last verified snapshot" when the source itself has stalled, because that is
+the one that changes what a reader should trust. A broken fetcher is an
+operational problem, signalled solely through `/health/fresh` — a fetch cycle
+that finds the content unchanged still counts as successful.

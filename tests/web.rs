@@ -386,6 +386,7 @@ async fn a_snapshot_without_breakdowns_still_serves_and_promises_nothing() {
     let state = racetoturin::web::AppState {
         snapshot: loaded,
         version,
+        checked_at: time::OffsetDateTime::now_utc(),
         curated,
         selection,
         stale_after: Duration::from_secs(691_200),
