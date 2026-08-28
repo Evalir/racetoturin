@@ -11,6 +11,7 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use anyhow::{Context, Result};
 use arc_swap::ArcSwap;
+use time::OffsetDateTime;
 
 pub struct Config {
     /// Wikipedia article carrying this season's standings.
@@ -24,8 +25,8 @@ pub struct Config {
     /// How old the source's own stated date may get before the table is
     /// labelled stale. Must accommodate a weekly source.
     pub stale_after: Duration,
-    /// How long since our last *successful* collection before we warn that
-    /// collection itself is failing. Should be a small multiple of `poll`.
+    /// How long since our last *successful* collection before `/health/fresh`
+    /// reports collection as failing. Should be a small multiple of `poll`.
     pub check_stale_after: Duration,
     pub poll: Duration,
     /// Public origin, for canonical and shared-link metadata.
@@ -106,6 +107,14 @@ pub async fn ingest(config: &Config, store: &storage::Store) -> Result<web::AppS
         .load_current()
         .await?
         .context("no snapshot available: the store is empty and collection is disabled or failed")?;
+    // A collection cycle counts as successful whenever we had a candidate,
+    // even one whose content was unchanged — the normal state for a weekly
+    // source. With the kill switch on, the stored snapshot's own age is the
+    // honest claim, so /health/fresh still alarms while collection is off.
+    let checked_at = match &candidate {
+        Some(_) => OffsetDateTime::now_utc(),
+        None => snapshot.generated_at,
+    };
     // A new entrant renders unlinked until someone reruns `refresh-atp-ids`.
     // That degrades correctly but invisibly, so name them in the log.
     let unlinked: Vec<&str> = snapshot
@@ -147,6 +156,7 @@ pub async fn ingest(config: &Config, store: &storage::Store) -> Result<web::AppS
     Ok(web::AppState {
         snapshot,
         version,
+        checked_at,
         curated,
         selection,
         stale_after: config.stale_after,
