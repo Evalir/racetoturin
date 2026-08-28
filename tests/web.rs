@@ -29,7 +29,14 @@ async fn app(curated: &str) -> Router {
         base_url: "https://racetotur.in".to_string(),
     };
     let store = Store::open(&config.db).await.unwrap();
-    let state = racetoturin::ingest(&config, &store).await.unwrap();
+    let mut state = racetoturin::ingest(&config, &store).await.unwrap();
+    // The checked-in source date is intentionally historical. Keep it one day
+    // inside this harness's configured freshness window so rendering tests do
+    // not start failing merely because the wall clock advanced.
+    let source_age = (time::OffsetDateTime::now_utc() - state.snapshot.source_as_of)
+        .whole_seconds()
+        .max(0) as u64;
+    state.stale_after = Duration::from_secs(source_age.saturating_add(86_400));
     racetoturin::web::router(Arc::new(ArcSwap::from_pointee(state)))
 }
 
@@ -111,7 +118,7 @@ async fn a_weekly_source_is_not_labelled_stale() {
     let (_, body) = get_body(app("live/curated.toml").await, "/").await;
     assert!(
         !body.contains("Stale: showing the last verified snapshot"),
-        "3-day-old weekly data must not be flagged stale"
+        "a source inside the configured freshness window must not be flagged stale"
     );
     assert!(
         !body.contains("collection may be failing"),
@@ -152,6 +159,10 @@ async fn response_carries_caching_and_link_metadata() {
 
     let (_, body) = get_body(app("live/curated.toml").await, "/").await;
     assert!(body.contains(&format!("/static/app.css?v={}", racetoturin::web::css_version())));
+    assert!(body.contains(&format!(
+        "/static/theme.js?v={}",
+        racetoturin::web::theme_version()
+    )));
     assert!(body.contains("og:title") && body.contains("twitter:card"));
     // The preview names who holds the last seat and who is closest out.
     assert!(body.contains("Seat 8: Novak Djokovic."));
@@ -177,6 +188,44 @@ async fn css_is_served_immutably() {
         .and_then(|v| v.to_str().ok())
         .unwrap_or_default();
     assert!(cache.contains("immutable"), "expected immutable: {cache:?}");
+}
+
+#[tokio::test]
+async fn theme_controller_is_served_immutably() {
+    let response = app("live/curated.toml")
+        .await
+        .oneshot(Request::get("/static/theme.js").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers().get("content-type").unwrap(),
+        "application/javascript; charset=utf-8"
+    );
+    let cache = response
+        .headers()
+        .get("cache-control")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or_default();
+    assert!(cache.contains("immutable"), "expected immutable: {cache:?}");
+}
+
+#[tokio::test]
+async fn theme_picker_offers_system_light_and_dark_choices() {
+    let (_, body) = get_body(app("live/curated.toml").await, "/").await;
+    assert!(body.contains("data-theme-picker"));
+    assert!(body.contains("data-theme-option=\"system\""));
+    assert!(body.contains("data-theme-option=\"light\""));
+    assert!(body.contains("data-theme-option=\"dark\""));
+    assert!(body.find("/static/theme.js").unwrap() < body.find("/static/app.css").unwrap());
+
+    let (_, script) = get_body(app("live/curated.toml").await, "/static/theme.js").await;
+    assert!(script.contains("localStorage.setItem"));
+    assert!(script.contains("root.removeAttribute(\"data-theme\")"));
+
+    let (_, css) = get_body(app("live/curated.toml").await, "/static/app.css").await;
+    assert!(css.contains("prefers-color-scheme: dark"));
+    assert!(css.contains(":root[data-theme=\"dark\"]"));
 }
 
 /// Scrolling the table is preferred over shortening status labels, so the
@@ -226,14 +275,13 @@ async fn a_player_with_no_atp_id_is_rendered_unlinked() {
     }
 }
 
-/// The breakdown expands with no JavaScript at all: a native <details> per
-/// player. The whole point of the page is that it ships no script, so a
-/// regression that reached for one has to fail here.
+/// The breakdown remains a native <details> per player. The theme controller
+/// is the page's only script and must not become a dependency for disclosure.
 #[tokio::test]
-async fn the_points_breakdown_expands_without_javascript() {
+async fn the_points_breakdown_stays_native() {
     let (status, body) = get_body(app("live/curated.toml").await, "/").await;
     assert_eq!(status, StatusCode::OK);
-    assert!(!body.contains("<script"), "the page must ship no script");
+    assert_eq!(body.matches("<script").count(), 1, "only theme selection needs script");
     assert!(!body.contains("onclick"), "no inline handlers either");
 
     // One disclosure per player. The qualification-rules panel carries a class,
