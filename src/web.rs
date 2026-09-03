@@ -99,6 +99,10 @@ struct FreshView {
 
 struct SummaryView {
     officials: String,
+    /// The seven names the box's heading is actually about. Worth repeating
+    /// from the table below: on a phone the table scrolls sideways, so the
+    /// status column that says the same thing is often off-screen.
+    top_seven: String,
     eighth: String,
     alternate: String,
     /// One visible sentence, only when seat 8 departs from race rank: that is
@@ -189,6 +193,10 @@ struct MethodologyPage {
     source: String,
 }
 
+/// Every date the page displays reads the same way: "02 September 2026".
+const DAY: &[time::format_description::FormatItem<'static>] =
+    format_description!("[day] [month repr:long] [year]");
+
 fn thousands(n: u32) -> String {
     let digits = n.to_string();
     let mut out = String::new();
@@ -213,8 +221,11 @@ fn signed_thousands(n: i64) -> String {
 
 /// The source states a date, not a time, so render it as a date.
 fn fmt_day(t: OffsetDateTime) -> String {
-    let fmt = format_description!("[day] [month repr:long] [year]");
-    t.format(&fmt).unwrap_or_else(|_| t.to_string())
+    t.date().format(DAY).unwrap_or_else(|_| t.to_string())
+}
+
+fn fmt_date(d: time::Date) -> String {
+    d.format(DAY).unwrap_or_else(|_| d.to_string())
 }
 
 fn fmt_rfc3339(t: OffsetDateTime) -> String {
@@ -259,10 +270,20 @@ fn build_summary(state: &AppState) -> SummaryView {
             .snapshot
             .qualifiers
             .iter()
-            .map(|q| format!("{} ({})", name_of(&q.player_code), q.qualified_on))
+            .map(|q| format!("{} ({})", name_of(&q.player_code), fmt_date(q.qualified_on)))
             .collect::<Vec<_>>()
             .join(", ")
     };
+
+    // Rows are already in rank order (validated), so filtering preserves it.
+    let top_seven = state
+        .snapshot
+        .rows
+        .iter()
+        .filter(|r| state.selection.state(&r.player_code) == Provisional::TopSeven)
+        .map(|r| r.player_name.clone())
+        .collect::<Vec<_>>()
+        .join(", ");
 
     let (eighth, basis_sentence) =
         match (&state.selection.eighth_code, state.selection.eighth_basis) {
@@ -293,6 +314,7 @@ fn build_summary(state: &AppState) -> SummaryView {
 
     SummaryView {
         officials,
+        top_seven,
         eighth,
         alternate,
         basis_sentence,

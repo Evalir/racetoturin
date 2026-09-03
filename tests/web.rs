@@ -62,9 +62,10 @@ async fn homepage_shows_the_real_ordinary_cutoff() {
     // Djokovic 2,320 over Auger-Aliassime 2,315 is a 5-point cushion.
     assert!(body.contains("+5"));
     assert!(body.contains("-5"));
-    // Ingested official qualifications, with dates.
-    assert!(body.contains("Jannik Sinner (2026-07-10)"));
-    assert!(body.contains("Alexander Zverev (2026-08-06)"));
+    // Ingested official qualifications, dated the way every other date on the
+    // page is written rather than in the source's ISO form.
+    assert!(body.contains("Jannik Sinner (10 July 2026)"));
+    assert!(body.contains("Alexander Zverev (06 August 2026)"));
     assert!(body.contains("Official"));
     // Freshness is stated as the source's own date and never claims "live".
     assert!(body.contains("official weekly"));
@@ -73,6 +74,33 @@ async fn homepage_shows_the_real_ordinary_cutoff() {
     // Attribution is required by CC BY-SA.
     assert!(body.contains("Wikipedia"));
     assert!(body.contains("CC BY-SA"));
+}
+
+/// The summary box is headed "if the season ended now", so it has to name all
+/// eight provisional qualifiers. Listing only the announced ones plus seat 8
+/// answered the question with the two names that are true either way.
+#[tokio::test]
+async fn the_summary_names_every_provisional_qualifier() {
+    let (_, body) = get_body(app("live/curated.toml").await, "/").await;
+    let summary = body
+        .split_once("class=\"summary\"")
+        .and_then(|(_, rest)| rest.split_once("</section>"))
+        .expect("the page carries a summary box")
+        .0;
+    // Seats 1-7, then seat 8, then the first alternate.
+    for name in [
+        "Jannik Sinner",
+        "Alexander Zverev",
+        "Carlos Alcaraz",
+        "Ben Shelton",
+        "Flavio Cobolli",
+        "Daniil Medvedev",
+        "Rafael Jódar",
+        "Novak Djokovic",
+        "Félix Auger-Aliassime",
+    ] {
+        assert!(summary.contains(name), "summary omits {name}");
+    }
 }
 
 #[tokio::test]
