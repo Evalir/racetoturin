@@ -56,8 +56,8 @@ async fn homepage_shows_the_real_ordinary_cutoff() {
     assert_eq!(status, StatusCode::OK);
     // 2026's slam champions are all top-3, so seat 8 falls to race rank.
     assert!(body.contains("Novak Djokovic — by race rank"));
-    assert!(body.contains("Provisional qualification line"));
-    assert!(body.contains("Top seven — qualify directly on race rank"));
+    assert!(body.contains("Qualification line"));
+    assert!(body.contains("Top seven qualify"));
     assert!(!body.contains("slam-pick"));
     // Djokovic 2,320 over Auger-Aliassime 2,315 is a 5-point cushion.
     assert!(body.contains("+5"));
@@ -82,7 +82,7 @@ async fn slam_champion_branch_still_renders() {
     assert!(body.contains("Grand Slam champion provision"));
     assert!(body.contains("slam-pick"));
     // No contiguous line exists in this branch, so margins are suppressed.
-    assert!(!body.contains("Provisional qualification line"));
+    assert!(!body.contains("Qualification line"));
 }
 
 #[tokio::test]
@@ -117,7 +117,7 @@ async fn health_fresh_reports_collection_age() {
 async fn a_weekly_source_is_not_labelled_stale() {
     let (_, body) = get_body(app("live/curated.toml").await, "/").await;
     assert!(
-        !body.contains("Stale: showing the last verified snapshot"),
+        !body.contains("Showing the last verified snapshot"),
         "a source inside the configured freshness window must not be flagged stale"
     );
     assert!(
@@ -362,8 +362,8 @@ async fn every_displayed_breakdown_adds_up_to_its_total() {
 }
 
 /// A snapshot stored before ledgers existed has no breakdowns, and the page
-/// must not advertise an expansion that is not there — while still serving
-/// every row and every point total.
+/// must render no disclosure for them — while still serving every row and
+/// every point total.
 #[tokio::test]
 async fn a_snapshot_without_breakdowns_still_serves_and_promises_nothing() {
     use racetoturin::{model::Snapshot, source, storage::Store};
@@ -398,10 +398,6 @@ async fn a_snapshot_without_breakdowns_still_serves_and_promises_nothing() {
     let (status, body) = get_body(app, "/").await;
     assert_eq!(status, StatusCode::OK);
     assert!(!body.contains("<details>"), "no ledger, so no disclosure");
-    assert!(
-        !body.contains("Every row expands"),
-        "the page must not offer an expansion it cannot deliver"
-    );
     // The standings themselves are untouched: this is a secondary feature.
     assert!(body.contains("7,950"));
     assert!(body.contains("Novak Djokovic — by race rank"));

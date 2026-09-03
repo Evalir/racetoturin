@@ -3,95 +3,64 @@
 {% block title %}Methodology — Race to Turin{% endblock %}
 
 {% block content %}
-<h1>Methodology &amp; data sources</h1>
+<h1>Methodology</h1>
 
-<h2>Where the numbers come from</h2>
-<p>Standings and official qualification data are read from the English Wikipedia article
-<a href="https://en.wikipedia.org/wiki/{{ season }}_ATP_Finals">{{ season }} ATP Finals</a> through
-Wikipedia's public API, once every six hours. The article's wikitext is parsed rather than its
-rendered page, because the markup is more stable. Source: <code>{{ source }}</code>, parser
-<code>{{ parser_version }}</code>.</p>
+<h2>Source</h2>
+<p>Standings and announced qualifications are read from the Wikipedia article
+<a href="https://en.wikipedia.org/wiki/{{ season }}_ATP_Finals">{{ season }} ATP Finals</a> through its
+public API every six hours, parsing the wikitext rather than the rendered page. ATP's own site refuses
+automated clients, and this project does not disguise itself or bypass that. Wikipedia's content is
+openly licensed, its API is meant for programmatic access, and it carries a per-tournament points
+ledger plus a citation for every announced qualification.</p>
+<p class="provenance">Source <code>{{ source }}</code> · parser <code>{{ parser_version }}</code> · ruleset <code>{{ ruleset }}</code></p>
 
-<p>ATP's own site refuses automated clients, and this project does not disguise itself or bypass
-any access control to get around that. Wikipedia is used instead because its content is openly
-licensed for reuse, its API is intended for programmatic access, and it carries a per-tournament
-points ledger plus a citation for every announced qualification.</p>
-
-<h2>The per-player points breakdown</h2>
-<p>Each row in the table expands to show the tournaments that make up that player's race total.
-The article records those as a grid: four Grand Slam columns, eight mandatory Masters 1000 columns,
-and up to six “best other” results. Each cell is read from its own wikilink rather than from the
-column it sits in, which matters because the rulebook lets a player replace up to three mandatory
-Masters 1000 results with other next-best results. Where that has happened the breakdown names the
-tournament actually played and the mandatory slot it was counted in, in italics, as the article
-does — reading the column instead would report a tournament the player never entered.</p>
-
-<p>Two things the breakdown deliberately does not claim:</p>
-<ul>
-  <li><strong>It is not a full schedule.</strong> Only a player's best results count toward the
-  race, so the breakdown lists fewer tournaments than the season they have played. The summary line
-  states both numbers.</li>
-  <li><strong>A skipped event and an unplayed one are different.</strong> A mandatory event the
-  player did not enter is shown as <code>A</code> scoring zero; one that has not been held yet is
-  shown as a dash and scores nothing at all.</li>
-</ul>
-
-<p>A breakdown is shown only if its points add up to exactly the total the article states for that
-row. One that does not reconcile is dropped on its own: the row keeps the published total and simply
-offers no breakdown, so a displayed total is always one you can verify by adding up the lines. Each
-tournament links to the article for that draw.</p>
-
-<h2>Freshness — this page is not live</h2>
-<p>Wikipedia publishes these standings weekly and states the date they are current to. That stated
-date is what the page shows as the source date, and the page never claims to be more current than
-its source. Once the data is older than the configured threshold the page labels itself
-<em>stale — last known good</em> rather than implying freshness it does not have.</p>
-
-<p>In-tournament projections (points after one more win, maximum reachable this week) are published
-only by the ATP. Rather than show columns of blanks, this site omits them.</p>
-
-<h2>Player links</h2>
-<p>Each player's name links to their profile on <code>atptour.com</code>. Nothing is fetched from
-there — the link is the only interaction this site has with the ATP's site. The profile ids come
-from <a href="https://www.wikidata.org/wiki/Property:P536">Wikidata property P536</a>, which
-publishes them as structured data in the public domain (CC0), keyed by the same Wikipedia article
-titles used here as player identity. The map is resolved offline and compiled into the binary, and
-the ids are format-checked before they are turned into URLs. A player with no id on Wikidata is
-shown unlinked rather than linked to a guess.</p>
+<h2>Freshness</h2>
+<p>Wikipedia publishes the standings weekly with a stated as-of date. That date is what the page shows,
+and it never claims to be more current. Past the configured threshold the page labels itself stale
+rather than implying freshness it does not have. In-tournament projections are published only by the
+ATP, so they are omitted.</p>
 
 <h2>What is computed here</h2>
 <ul>
-  <li><strong>Provisional selection</strong> — ruleset <code>{{ ruleset }}</code> applied to the
-  parsed table: the top seven by race rank, then up to two current-year Grand Slam champions ranked
-  8–20 in ranking order, then everyone else in rank order. The first eight unique players are the
-  provisional selections and the ninth is the first alternate. Labelled “if the season ended now.”</li>
-  <li><strong>Margins</strong> — signed points distance to the qualification line, suppressed when
-  the Grand Slam champion provision is active because no single contiguous line exists then.</li>
-  <li><strong>Movement</strong> — derived by comparing this snapshot with our own previous stored
-  snapshot, not taken from any source.</li>
+  <li><strong>Provisional selection</strong> — the top seven by race rank, then up to two {{ season }}
+  Grand Slam champions ranked 8–20, then everyone else in rank order. The first eight are the
+  provisional qualifiers and the ninth is first alternate. Official qualification is never inferred
+  from points: each announcement is ingested with the URL that made it.</li>
+  <li><strong>Margins</strong> — signed points distance to the qualification line, hidden when the
+  Grand Slam champion provision is active because no single line exists then.</li>
+  <li><strong>Movement</strong> — a comparison with our own previous snapshot, not taken from any
+  source.</li>
 </ul>
 
-<h2>Official versus provisional</h2>
-<p>Officially announced qualification is never inferred from points. Each announcement is ingested
-with the URL that announced it and stored alongside the snapshot; provisional selection is always
-computed and always labelled as such.</p>
+<h2>Points breakdown</h2>
+<p>Each row expands to the tournaments behind its total, as the article records them: four Grand
+Slams, eight mandatory Masters 1000s, and up to six best other results. Each cell is read from its own
+link rather than its column, because a player may replace up to three mandatory Masters results with
+next-best results. Those appear in italics, naming the event played and the slot it filled, as the
+article does.</p>
+<ul>
+  <li>Only a player's best results count, so the list is shorter than their season. The summary line
+  gives both numbers.</li>
+  <li>A skipped mandatory event shows <code>A</code> and scores zero; one not yet held shows a dash.</li>
+  <li>A breakdown is shown only if it adds up to the row's stated total. One that does not is dropped
+  while the row keeps its published total.</li>
+</ul>
+
+<h2>Player links</h2>
+<p>Names link to <code>atptour.com</code> profiles; nothing is fetched from there. Profile ids come
+from <a href="https://www.wikidata.org/wiki/Property:P536">Wikidata property P536</a> (CC0), resolved
+offline and compiled in. A player with no id is left unlinked rather than linked to a guess.</p>
 
 <h2>Integrity</h2>
-<p>Every fetch produces a candidate snapshot that must pass structural validation — the table must
-be present, ranks contiguous and unique, points non-increasing, and any announced qualifier must
-appear in the standings. A candidate that fails is rejected wholesale and can never replace the
-stored snapshot. Snapshots are append-only and immutable; corrections are new versions.</p>
-
-<p>The points breakdown is checked per row rather than per article, because it is secondary to the
-standings: a breakdown that does not reconcile is discarded while the row it belongs to is still
-published. That keeps a cosmetic change upstream from withdrawing the whole table, and the number of
-rows affected is logged so the failure cannot pass unnoticed.</p>
+<p>Every fetch must pass structural validation — table present, ranks contiguous and unique, points
+non-increasing, every announced qualifier present in the standings — or it is rejected wholesale.
+Snapshots are append-only; corrections are new versions. Breakdowns are checked per row, so a cosmetic
+change upstream cannot withdraw the whole table, and the number of rows affected is logged.</p>
 
 <h2>Licensing</h2>
-<p>Standings data originates from Wikipedia and is available under
-<a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>; our reproduction of it
-is offered under the same licence. Player profile ids from Wikidata are CC0. The site's source code is licensed separately (MIT) — code
-licensing and data licensing are not the same thing.</p>
+<p>Standings data is from Wikipedia under
+<a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> and is reproduced under the
+same licence. Wikidata ids are CC0. The site's source code is MIT, licensed separately.</p>
 
-<p>Season: {{ season }}. {{ notice }}</p>
+<p>Season {{ season }}. {{ notice }}</p>
 {% endblock %}

@@ -95,20 +95,14 @@ struct FreshView {
     is_stale: bool,
     source_dt: String,
     source_human: String,
-    generated_dt: String,
-    generated_human: String,
-    age: String,
-    source: String,
-    parser_version: String,
-    ruleset: String,
-    version: i64,
 }
 
 struct SummaryView {
     officials: String,
-    top_seven: String,
     eighth: String,
     alternate: String,
+    /// One visible sentence, only when seat 8 departs from race rank: that is
+    /// the case a reader would otherwise find confusing.
     basis_sentence: String,
 }
 
@@ -179,11 +173,6 @@ struct IndexPage {
     fresh: FreshView,
     summary: SummaryView,
     rows: Vec<RowView>,
-    /// False when no row carries a breakdown — serving a snapshot written
-    /// before ledgers existed, say — so the page does not offer an expansion
-    /// that is not there.
-    any_ledger: bool,
-    slam_provision_active: bool,
 }
 
 #[derive(Template)]
@@ -222,26 +211,6 @@ fn signed_thousands(n: i64) -> String {
     }
 }
 
-fn humanize_age(seconds: i64) -> String {
-    if seconds < 0 {
-        return "0 s".to_string();
-    }
-    if seconds < 90 {
-        format!("{seconds} s")
-    } else if seconds < 90 * 60 {
-        format!("{} min", seconds / 60)
-    } else if seconds < 48 * 3600 {
-        format!("{} h", seconds / 3600)
-    } else {
-        format!("{} days", seconds / 86_400)
-    }
-}
-
-fn fmt_human(t: OffsetDateTime) -> String {
-    let fmt = format_description!("[day] [month repr:short] [year] [hour]:[minute] UTC");
-    t.format(&fmt).unwrap_or_else(|_| t.to_string())
-}
-
 /// The source states a date, not a time, so render it as a date.
 fn fmt_day(t: OffsetDateTime) -> String {
     let fmt = format_description!("[day] [month repr:long] [year]");
@@ -260,20 +229,13 @@ fn build_fresh(state: &AppState, now: OffsetDateTime) -> FreshView {
         // The source publishes weekly with a stated date, so the page never
         // claims to be live.
         accuracy_label: if is_stale {
-            "stale — last known good".to_string()
+            "stale".to_string()
         } else {
             "official weekly".to_string()
         },
         is_stale,
         source_dt: fmt_rfc3339(state.snapshot.source_as_of),
         source_human: fmt_day(state.snapshot.source_as_of),
-        generated_dt: fmt_rfc3339(state.snapshot.generated_at),
-        generated_human: fmt_human(state.snapshot.generated_at),
-        age: humanize_age(age_secs),
-        source: state.snapshot.source.clone(),
-        parser_version: state.snapshot.parser_version.clone(),
-        ruleset: state.curated.ruleset.clone(),
-        version: state.version,
     }
 }
 
@@ -302,43 +264,25 @@ fn build_summary(state: &AppState) -> SummaryView {
             .join(", ")
     };
 
-    // Rows are already in rank order (validated), so filtering preserves it.
-    let top_seven = state
-        .snapshot
-        .rows
-        .iter()
-        .filter(|r| state.selection.state(&r.player_code) == Provisional::TopSeven)
-        .map(|r| r.player_name.clone())
-        .collect::<Vec<_>>()
-        .join(", ");
-
-    let (eighth, basis_sentence) = match (&state.selection.eighth_code, state.selection.eighth_basis)
-    {
-        (Some(code), SeatBasis::GrandSlamChampion) => {
-            let name = name_of(code);
-            (
-                format!("{name} — Grand Slam champion provision"),
-                format!(
-                    "Seat 8 goes to {name} as a {season} Grand Slam champion ranked 8–20, \
-                     not to the player ranked 8 in the race. There is no ordinary 8/9 cutoff \
-                     this week, so points margins to a single line are not shown.",
-                    season = state.curated.season
-                ),
-            )
-        }
-        (Some(code), SeatBasis::RaceRank) => {
-            let name = name_of(code);
-            (
-                format!("{name} — by race rank"),
-                format!(
-                    "Seat 8 goes to {name} by race rank: no eligible {season} Grand Slam \
-                     champion is ranked 8–20, so the ordinary 8/9 cutoff applies.",
-                    season = state.curated.season
-                ),
-            )
-        }
-        (None, _) => ("—".to_string(), String::new()),
-    };
+    let (eighth, basis_sentence) =
+        match (&state.selection.eighth_code, state.selection.eighth_basis) {
+            (Some(code), SeatBasis::GrandSlamChampion) => {
+                let name = name_of(code);
+                (
+                    format!("{name} — Grand Slam champion provision"),
+                    format!(
+                        "{name} takes seat 8 as a {season} Grand Slam champion ranked 8–20. \
+                     With no single cutoff, margins are not shown.",
+                        season = state.curated.season
+                    ),
+                )
+            }
+            // The ordinary case needs no explanation.
+            (Some(code), SeatBasis::RaceRank) => {
+                (format!("{} — by race rank", name_of(code)), String::new())
+            }
+            (None, _) => ("—".to_string(), String::new()),
+        };
 
     let alternate = state
         .selection
@@ -349,7 +293,6 @@ fn build_summary(state: &AppState) -> SummaryView {
 
     SummaryView {
         officials,
-        top_seven,
         eighth,
         alternate,
         basis_sentence,
@@ -455,9 +398,7 @@ fn build_ledger(row: &RaceRow) -> Option<LedgerView> {
         // when it reconciles — so showing it lets a reader add up and check.
         total: thousands(row.ledger_points()),
         substitution_note: if row.results.iter().any(|r| r.substituted) {
-            "Italicised results were counted in place of a mandatory Masters 1000, \
-             which the rulebook allows for up to three of them."
-                .to_string()
+            "Italics: counted in place of a mandatory Masters 1000.".to_string()
         } else {
             String::new()
         },
@@ -582,7 +523,7 @@ fn shared_link_text(state: &AppState, summary: &SummaryView) -> String {
         })
         .unwrap_or_else(|| "—".to_string());
     format!(
-        "Who would qualify for the {season} ATP Finals in Turin if selection happened now. \
+        "Who qualifies for the {season} ATP Finals in Turin if the season ended now. \
          Seat 8: {cut}. First alternate: {alt}. Standings as of {as_of}.",
         season = state.curated.season,
         alt = summary.alternate,
@@ -625,9 +566,7 @@ async fn index(State(shared): State<SharedState>) -> Response {
         summary_text: shared_link_text(&state, &summary),
         fresh: build_fresh(&state, OffsetDateTime::now_utc()),
         summary,
-        any_ledger: rows.iter().any(|r| r.ledger.is_some()),
         rows,
-        slam_provision_active: state.selection.eighth_basis == SeatBasis::GrandSlamChampion,
     };
     render(&page, CACHE_PAGE, state.version)
 }
@@ -639,8 +578,8 @@ async fn methodology(State(shared): State<SharedState>) -> Response {
         css_version: css_version(),
         theme_version: theme_version(),
         canonical: format!("{}/methodology", state.base_url),
-        summary_text: "Where racetotur.in's standings come from, how the Turin \
-                       qualification rule is applied, and what the freshness labels mean."
+        summary_text: "Where racetotur.in's standings come from and how the Turin \
+                       qualification rule is applied."
             .to_string(),
         notice: state.curated.notice.clone(),
         ruleset: state.curated.ruleset.clone(),

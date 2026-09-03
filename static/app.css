@@ -122,13 +122,13 @@ footer.site {
   padding: 0.5rem 0.75rem; margin: 1rem 0; font-size: 0.85rem;
 }
 .freshness p { margin: 0.15rem 0; }
-/* The source URL is one long unbreakable token; without this it forces the
-   whole page wider than a phone viewport. */
-.provenance { overflow-wrap: anywhere; }
 .freshness.stale { border-color: var(--danger); }
 .freshness.stale .badge.acc { background: var(--danger); color: var(--accent-ink); }
 .stale-note { color: var(--danger); text-transform: uppercase; }
-.provenance { color: var(--muted); font-size: 0.8rem; }
+/* Source and parser identifiers on the methodology page. The source URL is one
+   long unbreakable token; without the wrap it forces the page wider than a
+   phone viewport. */
+.provenance { color: var(--muted); font-size: 0.8rem; overflow-wrap: anywhere; }
 
 .badge {
   display: inline-block; font-size: 0.78rem; font-weight: 700;
@@ -213,11 +213,6 @@ tr.cutline.strong td { border-bottom-style: solid; }
   h1 { font-size: 1.15rem; }
   .seats { gap: 0.35rem; }
 }
-
-/* Says once, above the table, what the twelve disclosure strips below are for;
-   repeating the word "breakdown" in every summary would cost more and read
-   worse. */
-.hint { color: var(--muted); font-size: 0.8rem; margin: 0 0 0.4rem; }
 
 /* Per-player points breakdown. Disclosure remains a native <details>; it lives
    in a full-width row beneath its player because a <details> cannot wrap a

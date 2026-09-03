@@ -2,39 +2,34 @@
 
 {% block content %}
 <h1>Race to Turin</h1>
-<p class="lede">Who would qualify for the {{ season }} ATP Finals in Turin if selection happened now.</p>
+<p class="lede">Who qualifies for the {{ season }} ATP Finals in Turin.</p>
 
 <section class="freshness{% if fresh.is_stale %} stale{% endif %}" aria-label="Data freshness">
   <p>
     <span class="badge acc">{{ fresh.accuracy_label }}</span>
-    source <time datetime="{{ fresh.source_dt }}">{{ fresh.source_human }}</time>
-    · generated <time datetime="{{ fresh.generated_dt }}">{{ fresh.generated_human }}</time>
-    · source age {{ fresh.age }}
-    {% if fresh.is_stale %}<strong class="stale-note">Stale: showing the last verified snapshot.</strong>{% endif %}
+    standings as of <time datetime="{{ fresh.source_dt }}">{{ fresh.source_human }}</time>
+    {% if fresh.is_stale %}<strong class="stale-note">Showing the last verified snapshot.</strong>{% endif %}
   </p>
-  <p class="provenance">Source: {{ fresh.source }} · parser {{ fresh.parser_version }} · ruleset {{ fresh.ruleset }} · snapshot v{{ fresh.version }}</p>
 </section>
 
 <section class="summary" aria-label="Qualification summary">
   <h2>If the season ended now</h2>
   <dl class="seats">
     <div><dt>Officially qualified</dt><dd>{{ summary.officials }}</dd></div>
-    <div><dt>Provisional seats 1–7</dt><dd>{{ summary.top_seven }}</dd></div>
     <div><dt>Seat 8</dt><dd>{{ summary.eighth }}</dd></div>
     <div><dt>First alternate</dt><dd>{{ summary.alternate }}</dd></div>
   </dl>
-  <p class="basis">{{ summary.basis_sentence }}</p>
+  {% if !summary.basis_sentence.is_empty() %}<p class="basis">{{ summary.basis_sentence }}</p>{% endif %}
 </section>
 
-<section aria-label="Race standings table">
-  <h2>Official standings — top {{ rows.len() }}</h2>
-  {% if any_ledger %}<p class="hint">Every row expands to the tournaments behind its points.</p>{% endif %}
+<section aria-label="Race standings">
+  <h2>Standings</h2>
   <div class="table-wrap">
     <table class="race">
       <thead>
         <tr>
           <th scope="col" class="num">#</th>
-          <th scope="col"><abbr title="Places moved since our previous snapshot">±</abbr></th>
+          <th scope="col"><abbr title="Places moved since the last update">±</abbr></th>
           <th scope="col" class="left">Player</th>
           <th scope="col" class="left">Status</th>
           <th scope="col" class="num">Points</th>
@@ -78,10 +73,10 @@
         </tr>
         {% endif %}
         {% if row.cut_strong_after %}
-        <tr class="cutline strong"><td colspan="6">Top seven — qualify directly on race rank</td></tr>
+        <tr class="cutline strong"><td colspan="6">Top seven qualify</td></tr>
         {% endif %}
         {% if row.cut_ordinary_after %}
-        <tr class="cutline"><td colspan="6">Provisional qualification line — seat 8 by race rank</td></tr>
+        <tr class="cutline"><td colspan="6">Qualification line</td></tr>
         {% endif %}
         {% endfor %}
       </tbody>
@@ -92,13 +87,10 @@
 <details class="rules">
   <summary>How qualification works</summary>
   <ol>
-    <li>The top seven players in the race qualify directly.</li>
-    <li>If a current-year Grand Slam champion is ranked 8–20, the eighth seat goes to the highest-ranked such champion (at most two are eligible; the second becomes the first alternate).</li>
-    <li>Otherwise the eighth seat goes to the player ranked 8, and the next player is the first alternate.</li>
+    <li>The top seven in the race qualify.</li>
+    <li>Seat 8 goes to the highest-ranked {{ season }} Grand Slam champion ranked 8–20, if there is one. A second such champion is first alternate.</li>
+    <li>Otherwise the player ranked 8 takes it, and rank 9 is first alternate.</li>
   </ol>
-  {% if slam_provision_active %}
-  <p>The Grand Slam champion provision is currently active, so the highlighted row below the top seven holds seat 8 and there is no contiguous 8/9 cutoff.</p>
-  {% endif %}
-  <p>Provisional status is this rule applied to the current table, labelled “if the season ended now.” Official qualification is only ever recorded from an announcement, never inferred from points. See the <a href="/methodology">methodology</a> page.</p>
+  <p><span class="badge official">Official</span> marks an announced qualification. Everything else is provisional. Details on the <a href="/methodology">methodology</a> page.</p>
 </details>
 {% endblock %}

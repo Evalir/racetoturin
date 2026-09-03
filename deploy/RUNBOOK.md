@@ -164,7 +164,7 @@ becomes something people rely on.
 | Symptom | Cause | Action |
 |---|---|---|
 | Crashloop on very first boot | Empty DB *and* the fetch failed, so there is nothing to serve | Check `fly logs` for the upstream error; it self-heals once Wikipedia is reachable |
-| Page shows "stale — last known good" | Refresh failing, or the article's as-of date stopped moving | `fly logs` shows the rejection reason; the served snapshot is intact |
+| Page shows a red "stale" badge | Refresh failing, or the article's as-of date stopped moving | `fly logs` shows the rejection reason; the served snapshot is intact |
 | "candidate snapshot rejected" in logs | Wikipedia's table was restructured or vandalised | Working as intended — the last good snapshot keeps serving. Fix the parser at leisure |
 | Health check failing | No snapshot available at all | `fly ssh console`, confirm `/data` is mounted |
 
