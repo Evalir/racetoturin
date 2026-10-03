@@ -101,8 +101,9 @@ struct SummaryView {
     officials: String,
     /// The seven names the box's heading is actually about. Worth repeating
     /// from the table below: on a phone the table scrolls sideways, so the
-    /// status column that says the same thing is often off-screen.
-    top_seven: String,
+    /// status column that says the same thing is often off-screen. Kept as a
+    /// list so the page can number them.
+    top_seven: Vec<String>,
     eighth: String,
     alternate: String,
     /// One visible sentence, only when seat 8 departs from race rank: that is
@@ -282,8 +283,7 @@ fn build_summary(state: &AppState) -> SummaryView {
         .iter()
         .filter(|r| state.selection.state(&r.player_code) == Provisional::TopSeven)
         .map(|r| r.player_name.clone())
-        .collect::<Vec<_>>()
-        .join(", ");
+        .collect();
 
     let (eighth, basis_sentence) =
         match (&state.selection.eighth_code, state.selection.eighth_basis) {
