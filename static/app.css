@@ -1,278 +1,532 @@
-/* MS-DOS look, adapted into light and dark palettes. Light is the fallback;
-   an unset data-theme follows the OS, while an explicit attribute wins. */
+/* Light is the fallback; an unset data-theme follows the OS, while an explicit
+   attribute wins. The palette is neutral greys plus one brand colour, the
+   tennis-ball yellow-green, used sparingly: the logo, the "Official" badge and
+   focus rings. Everything else that carries colour is a status. */
 :root {
   color-scheme: light;
-  --page-bg: #fbfaf2;
-  --text: #343432;
-  --muted: #62615d;
-  --border: #8a8982;
-  --strong: #0c0c0c;
-  --positive: #006b32;
-  --link: #006875;
-  --focus: #765d00;
-  --danger: #b21f2d;
-  --special: #87298b;
-  --accent-ink: #ffffff;
-  --chrome-bg: #242424;
-  --chrome-ink: #fbfaf2;
+  --bg: #fafafa;
+  --card: #ffffff;
+  --subtle: #f4f4f5;
+  --text: #18181b;
+  --muted: #63636b;
+  --faint: #a1a1aa;
+  --border: #e6e6e9;
+  --border-strong: #d4d4d8;
+  --positive: #15803d;
+  --negative: #b91c1c;
+  --slam: #b45309;
+  --special: #7c3aed;
+  --ball: #c8f031;
+  --ball-ink: #1a2603;
+  --ring: #4d7c0f;
+  --glow: rgb(200 240 49 / 0.22);
+  --shadow: 0 1px 2px rgb(24 24 27 / 0.04), 0 1px 3px rgb(24 24 27 / 0.03);
+  --header-bg: rgb(250 250 250 / 0.8);
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --page-bg: #000000;
-  --text: #aaaaaa;
-  --muted: #888888;
-  --border: #666666;
-  --strong: #ffffff;
-  --positive: #55ff55;
-  --link: #55ffff;
-  --focus: #ffff55;
-  --danger: #ff5555;
-  --special: #ff55ff;
-  --accent-ink: #000000;
-  --chrome-bg: #aaaaaa;
-  --chrome-ink: #000000;
+  --bg: #09090b;
+  --card: #111114;
+  --subtle: #18181c;
+  --text: #f4f4f5;
+  --muted: #a1a1aa;
+  --faint: #5b5b63;
+  --border: #232328;
+  --border-strong: #34343b;
+  --positive: #4ade80;
+  --negative: #f87171;
+  --slam: #fbbf24;
+  --special: #a78bfa;
+  --ring: #c8f031;
+  --glow: rgb(200 240 49 / 0.07);
+  --shadow: none;
+  --header-bg: rgb(9 9 11 / 0.75);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     color-scheme: dark;
-    --page-bg: #000000;
-    --text: #aaaaaa;
-    --muted: #888888;
-    --border: #666666;
-    --strong: #ffffff;
-    --positive: #55ff55;
-    --link: #55ffff;
-    --focus: #ffff55;
-    --danger: #ff5555;
-    --special: #ff55ff;
-    --accent-ink: #000000;
-    --chrome-bg: #aaaaaa;
-    --chrome-ink: #000000;
+    --bg: #09090b;
+    --card: #111114;
+    --subtle: #18181c;
+    --text: #f4f4f5;
+    --muted: #a1a1aa;
+    --faint: #5b5b63;
+    --border: #232328;
+    --border-strong: #34343b;
+    --positive: #4ade80;
+    --negative: #f87171;
+    --slam: #fbbf24;
+    --special: #a78bfa;
+    --ring: #c8f031;
+    --glow: rgb(200 240 49 / 0.07);
+    --shadow: none;
+    --header-bg: rgb(9 9 11 / 0.75);
   }
 }
 
+:root {
+  --sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --radius: 14px;
+  --gutter: 1.5rem;
+  --width: 64rem;
+}
+
 * { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
-  background: var(--page-bg);
+  background:
+    radial-gradient(52rem 22rem at 12% -6rem, var(--glow), transparent 70%) no-repeat,
+    var(--bg);
   color: var(--text);
-  font: 15px/1.45 ui-monospace, Menlo, Consolas, "Courier New", monospace;
+  font: 15px/1.55 var(--sans);
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
-::selection { background: var(--text); color: var(--page-bg); }
-main { max-width: 66rem; margin: 0 auto; padding: 0 1rem 3rem; }
+::selection { background: var(--ball); color: var(--ball-ink); }
+main { max-width: var(--width); margin: 0 auto; padding: 0 var(--gutter) 4rem; }
 
-a { color: var(--link); text-decoration: underline; }
-a:hover, a:focus { background: var(--link); color: var(--accent-ink); outline: none; }
-:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+a:hover { text-decoration-color: currentColor; }
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: 4px; }
 
-h1, h2 { color: var(--strong); text-transform: uppercase; letter-spacing: 0.08em; }
-h1 { font-size: 1.35rem; margin: 1.25rem 0 0.25rem; }
-h1::before, h2::before { content: "▌"; color: var(--focus); margin-right: 0.4rem; }
-h2 { font-size: 1rem; margin: 1.75rem 0 0.5rem; }
-.lede { color: var(--muted); margin-top: 0; }
+h1, h2 { color: var(--text); margin: 0; }
+h1 {
+  font-size: clamp(2.1rem, 1.5rem + 2.6vw, 3.1rem);
+  font-weight: 700; line-height: 1.05; letter-spacing: -0.035em;
+}
+h2 { font-size: 1.05rem; font-weight: 600; letter-spacing: -0.01em; }
+
+.eyebrow {
+  margin: 0 0 0.75rem;
+  font: 500 0.72rem/1 var(--mono);
+  text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted);
+}
+.lede { color: var(--muted); font-size: 1.1rem; margin: 0.75rem 0 0; }
 
 .skip {
-  position: absolute; left: -999px; top: 0;
-  background: var(--focus); color: var(--accent-ink); padding: 0.5rem 1rem;
+  position: absolute; left: -999px; top: 0.5rem;
+  background: var(--text); color: var(--bg); padding: 0.5rem 0.9rem;
+  border-radius: 999px; text-decoration: none; font-weight: 500;
 }
-.skip:focus { left: 0; z-index: 10; }
+.skip:focus { left: 0.5rem; z-index: 20; }
 
-/* Inverse-video title bar, Norton Commander style. */
-header.site { background: var(--chrome-bg); color: var(--chrome-ink); }
+/* --- Header ------------------------------------------------------------- */
+
+header.site {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--header-bg);
+  -webkit-backdrop-filter: saturate(180%) blur(12px);
+  backdrop-filter: saturate(180%) blur(12px);
+  border-bottom: 1px solid var(--border);
+}
 .site-bar {
   display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-  max-width: 66rem; margin: 0 auto; padding: 0.35rem 1rem;
+  max-width: var(--width); margin: 0 auto; padding: 0.7rem var(--gutter);
 }
-header.site a, footer.site a { color: inherit; }
-header.site a:hover, header.site a:focus { background: var(--chrome-ink); color: var(--chrome-bg); }
-.brand { margin: 0; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }
+.brand {
+  display: inline-flex; align-items: center; gap: 0.55rem;
+  font-weight: 600; letter-spacing: -0.01em; text-decoration: none;
+}
+.mark { width: 1.35rem; height: 1.35rem; flex: none; }
+.mark circle { fill: var(--ball); }
+.mark path { fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; }
 
-.theme-picker { display: flex; align-items: center; gap: 0.5rem; }
+.site-nav { display: flex; align-items: center; gap: 1rem; }
+.site-nav > a {
+  color: var(--muted); font-size: 0.875rem; font-weight: 500; text-decoration: none;
+}
+.site-nav > a:hover { color: var(--text); }
+
+.theme-picker {
+  display: inline-flex; gap: 2px; padding: 3px;
+  background: var(--subtle); border: 1px solid var(--border); border-radius: 999px;
+}
 .theme-picker[hidden] { display: none; }
-.theme-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; }
-.theme-options { display: inline-flex; border: 1px solid currentColor; }
-.theme-options button {
-  appearance: none; border: 0; border-left: 1px solid currentColor;
-  border-radius: 0; background: transparent; color: inherit; cursor: pointer;
-  padding: 0.08rem 0.42rem;
-  font: 700 0.72rem/1.45 ui-monospace, Menlo, Consolas, "Courier New", monospace;
-  text-transform: uppercase;
+.theme-picker button {
+  appearance: none; display: grid; place-items: center;
+  width: 1.75rem; height: 1.6rem; padding: 0;
+  border: 0; border-radius: 999px; background: transparent;
+  color: var(--muted); cursor: pointer;
 }
-.theme-options button:first-child { border-left: 0; }
-.theme-options button:hover { text-decoration: underline; }
-.theme-options button[aria-pressed="true"] {
-  background: var(--chrome-ink); color: var(--chrome-bg);
+.theme-picker button:hover { color: var(--text); }
+.theme-picker button[aria-pressed="true"] {
+  background: var(--card); color: var(--text);
+  box-shadow: 0 0 0 1px var(--border), 0 1px 2px rgb(0 0 0 / 0.08);
 }
-.theme-options button:focus-visible {
-  position: relative; z-index: 1;
-  outline: 2px solid var(--strong); outline-offset: 1px;
-  box-shadow: 0 0 0 3px var(--page-bg);
+.theme-picker svg {
+  width: 0.95rem; height: 0.95rem;
+  fill: none; stroke: currentColor; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
 }
+.theme-picker button:focus-visible { border-radius: 999px; }
 
-footer.site {
-  border-top: 1px solid var(--border);
-  max-width: 66rem; margin: 0 auto; padding: 0.5rem 1rem;
-  color: var(--muted); font-size: 0.85rem;
-}
+/* --- Footer ------------------------------------------------------------- */
 
-.freshness {
-  border: 3px double var(--border);
-  padding: 0.5rem 0.75rem; margin: 1rem 0; font-size: 0.85rem;
+footer.site { border-top: 1px solid var(--border); color: var(--muted); font-size: 0.82rem; }
+.site-foot {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.25rem 1.5rem;
+  max-width: var(--width); margin: 0 auto; padding: 1.5rem var(--gutter) 2rem;
 }
-.freshness p { margin: 0.15rem 0; }
-.freshness.stale { border-color: var(--danger); }
-.freshness.stale .badge.acc { background: var(--danger); color: var(--accent-ink); }
-.stale-note { color: var(--danger); text-transform: uppercase; }
+.site-foot p { margin: 0; }
+footer.site a:hover { color: var(--text); }
+
+/* --- Hero --------------------------------------------------------------- */
+
+.hero { padding: 3.5rem 0 2rem; }
+
+.freshness { margin-top: 1.5rem; }
+.freshness p {
+  display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem;
+  margin: 0; padding: 0.35rem 0.85rem 0.35rem 0.6rem;
+  background: var(--card); border: 1px solid var(--border); border-radius: 1rem;
+  box-shadow: var(--shadow); color: var(--muted); font-size: 0.82rem;
+}
+.freshness time { color: var(--text); font-weight: 500; }
+.freshness .badge.acc {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  padding: 0; background: none; border: 0;
+  color: var(--text); font-size: 0.82rem; font-weight: 600; text-transform: none;
+}
+/* A steady dot, not a pulsing one: the source is weekly and the page never
+   implies it is live. */
+.freshness .badge.acc::before {
+  content: ""; width: 0.5rem; height: 0.5rem; border-radius: 50%;
+  background: var(--positive);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--positive) 20%, transparent);
+}
+.freshness .badge.acc::after { content: "·"; color: var(--faint); font-weight: 400; }
+.freshness.stale p { border-color: color-mix(in srgb, var(--negative) 45%, var(--border)); }
+.freshness.stale .badge.acc { color: var(--negative); }
+.freshness.stale .badge.acc::before {
+  background: var(--negative);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--negative) 20%, transparent);
+}
+.stale-note { color: var(--negative); font-weight: 500; }
+
 /* Source and parser identifiers on the methodology page. The source URL is one
    long unbreakable token; without the wrap it forces the page wider than a
    phone viewport. */
 .provenance { color: var(--muted); font-size: 0.8rem; overflow-wrap: anywhere; }
 
-.badge {
-  display: inline-block; font-size: 0.78rem; font-weight: 700;
-  padding: 0 0.25rem; white-space: nowrap; text-transform: uppercase;
-}
-.badge::before { content: "["; }
-.badge::after { content: "]"; }
-.badge.acc, .badge.official { background: var(--positive); color: var(--accent-ink); }
-.badge.st-in { color: var(--positive); }
-.badge.st-slam { color: var(--focus); }
-.badge.st-alt { color: var(--special); }
-.badge.st-out { color: var(--danger); }
+/* --- Badges ------------------------------------------------------------- */
 
-.summary { border: 3px double var(--text); padding: 0.25rem 0.75rem 0.75rem; }
-.seats { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0.5rem; margin: 0.5rem 0; }
-.seats .wide { grid-column: 1 / -1; }
-.seats dt { font-size: 0.75rem; text-transform: uppercase; color: var(--focus); }
-.seats dd { margin: 0; color: var(--strong); }
-.basis { font-size: 0.9rem; color: var(--text); margin-bottom: 0.25rem; }
+.badge {
+  display: inline-block; padding: 0.1rem 0.5rem;
+  border: 1px solid transparent; border-radius: 999px;
+  font-size: 0.72rem; font-weight: 600; line-height: 1.4; white-space: nowrap;
+  color: var(--muted);
+  background: var(--subtle);
+}
+.badge.official { background: var(--ball); color: var(--ball-ink); }
+.badge.st-in, .badge.st-slam, .badge.st-alt, .badge.st-out {
+  color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 11%, transparent);
+  border-color: color-mix(in srgb, var(--tone) 22%, transparent);
+}
+.badge.st-in { --tone: var(--positive); }
+.badge.st-slam { --tone: var(--slam); }
+.badge.st-alt { --tone: var(--special); }
+.badge.st-out { --tone: var(--negative); }
+
+/* --- Summary card ------------------------------------------------------- */
+
+.summary, .table-wrap, .rules {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.summary { padding: 1.25rem 1.5rem 1.4rem; }
+.seats {
+  display: grid; grid-template-columns: 1fr 1fr 1.5fr;
+  gap: 1.25rem 1.5rem; margin: 1rem 0 0;
+}
+.seats .wide {
+  grid-column: 1 / -1;
+  padding-bottom: 1.25rem; border-bottom: 1px solid var(--border);
+}
+.seats dt {
+  margin-bottom: 0.35rem;
+  font-size: 0.72rem; font-weight: 500; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.seats dd { margin: 0; font-weight: 500; }
+.seven {
+  display: flex; flex-wrap: wrap; gap: 0.4rem;
+  margin: 0.15rem 0 0; padding: 0; list-style: none;
+  counter-reset: seat;
+}
+.seven li {
+  counter-increment: seat;
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  padding: 0.25rem 0.7rem 0.25rem 0.3rem;
+  background: var(--subtle); border: 1px solid var(--border); border-radius: 999px;
+  font-size: 0.875rem; white-space: nowrap;
+}
+.seven li::before {
+  content: counter(seat);
+  display: grid; place-items: center;
+  width: 1.35rem; height: 1.35rem; border-radius: 50%;
+  background: var(--card); border: 1px solid var(--border);
+  color: var(--muted); font: 600 0.68rem/1 var(--sans);
+  font-variant-numeric: tabular-nums;
+}
+.basis {
+  margin: 1.1rem 0 0; padding: 0.6rem 0.8rem;
+  background: color-mix(in srgb, var(--slam) 9%, transparent);
+  border-radius: 10px; font-size: 0.875rem;
+}
+
+/* --- Standings ---------------------------------------------------------- */
+
+.standings { margin-top: 2.75rem; }
+.standings h2 { margin-bottom: 0.85rem; }
+
+/* Column widths that the ledger rows line up against: each breakdown starts
+   under its player's name, past the rank and movement columns. */
+.race {
+  --cell-x: 0.75rem;
+  --col-rank: 3rem;
+  --col-move: 2.6rem;
+}
 
 /* The load-bearing rule for narrow screens: the standings table is allowed to
    be wider than the viewport and scroll horizontally *here*, which is what
    keeps the page itself from scrolling. Do not remove. */
 .table-wrap { overflow-x: auto; max-width: 100%; }
-table.race { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
-table.race th, table.race td { padding: 0.25rem 0.5rem; border-bottom: 1px solid var(--border); }
-table.race th {
-  font-size: 0.78rem; text-transform: uppercase; color: var(--focus);
-  text-align: right; border-bottom: 1px solid var(--text);
+table.race { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+table.race th, table.race td {
+  padding: 0.7rem var(--cell-x);
+  border-bottom: 1px solid var(--border);
 }
+table.race th {
+  background: var(--subtle);
+  font-size: 0.7rem; font-weight: 500; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  text-align: right; white-space: nowrap;
+  padding-block: 0.6rem;
+}
+table.race th:nth-child(1) { width: var(--col-rank); }
+table.race th:nth-child(2) { width: var(--col-move); text-align: center; }
 table.race th.left { text-align: left; }
+table.race abbr { text-decoration: none; }
+table.race tbody tr:last-child > td { border-bottom: 0; }
 td.num { text-align: right; font-variant-numeric: tabular-nums; }
 td.left { text-align: left; }
-td.points { font-weight: 700; color: var(--strong); }
+td.rank { color: var(--muted); font-weight: 500; }
+td.player { font-weight: 500; line-height: 1.3; }
+td.points { font-weight: 600; }
+td.move { text-align: center; font-size: 0.75rem; font-variant-numeric: tabular-nums; }
 td.move.up { color: var(--positive); }
-td.move.down { color: var(--danger); }
-td.move.flat { color: var(--muted); }
-.cc { font-size: 0.78rem; color: var(--muted); }
+td.move.down { color: var(--negative); }
+td.move.flat { color: var(--faint); }
+.cc {
+  margin-left: 0.3rem;
+  font: 500 0.68rem/1 var(--mono); letter-spacing: 0.04em; color: var(--muted);
+}
+td.margin { font-size: 0.85rem; }
 td.margin.pos { color: var(--positive); }
-td.margin.neg { color: var(--danger); }
+td.margin.neg { color: var(--negative); }
+td.status .badge + .badge { margin-left: 0.25rem; }
 
-tr.selected td.player { color: var(--positive); }
-tr.slam-pick td.player { color: var(--focus); font-weight: 700; }
-tr.alternate td.player { color: var(--special); }
+/* A zone marker down the left edge, as league tables mark their promotion
+   places. It carries on through the player's breakdown row. */
+tr.selected, tr.selected + tr.ledger-row { --zone: var(--positive); }
+tr.slam-pick, tr.slam-pick + tr.ledger-row { --zone: var(--slam); }
+tr.alternate, tr.alternate + tr.ledger-row { --zone: var(--special); }
+tr.selected > td:first-child,
+tr.alternate > td:first-child,
+tr.selected + tr.ledger-row > td,
+tr.alternate + tr.ledger-row > td { box-shadow: inset 3px 0 0 var(--zone); }
+
 tr.withdrawn { color: var(--muted); text-decoration: line-through; }
 
+/* The qualification lines: a rule with its label set into it. */
 tr.cutline td {
-  border-bottom: 3px double var(--danger);
-  color: var(--danger); font-size: 0.75rem; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.15em;
-  text-align: center; padding: 0.1rem;
+  padding: 0 var(--cell-x); height: 1.9rem;
+  background:
+    linear-gradient(var(--line), var(--line)) center / 100% 1px no-repeat,
+    var(--subtle);
+  --line: var(--border-strong);
+  text-align: center;
 }
-tr.cutline.strong td { border-bottom-style: solid; }
+tr.cutline.strong td { --line: color-mix(in srgb, var(--positive) 55%, transparent); }
+tr.cutline span {
+  display: inline-block; padding: 0.15rem 0.65rem;
+  background: var(--card); border: 1px solid var(--line); border-radius: 999px;
+  font-size: 0.66rem; font-weight: 600; line-height: 1.3;
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
+}
+tr.cutline.strong span { color: var(--positive); }
 
-.rules { margin-top: 1.5rem; }
-.rules summary { cursor: pointer; font-weight: 700; color: var(--link); text-transform: uppercase; }
+/* --- Rules panel -------------------------------------------------------- */
+
+.rules { margin-top: 1.25rem; }
+.rules > summary {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.9rem 1.25rem;
+  cursor: pointer; list-style: none; font-weight: 500;
+}
+.rules > summary::-webkit-details-marker { display: none; }
+.rules > summary::after {
+  content: ""; margin-left: auto;
+  width: 0.45rem; height: 0.45rem;
+  border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted);
+  transform: rotate(45deg) translateY(-2px); transition: transform 0.15s ease;
+}
+.rules[open] > summary::after { transform: rotate(-135deg) translateY(-1px); }
+.rules > summary:focus-visible { outline-offset: -2px; border-radius: var(--radius); }
+.rules-body { padding: 0 1.25rem 1.1rem; color: var(--muted); font-size: 0.9rem; }
+.rules-body ol { margin: 0 0 0.75rem; padding-left: 1.2rem; }
+.rules-body li { margin: 0.25rem 0; }
+.rules-body li::marker { color: var(--faint); font-variant-numeric: tabular-nums; }
+.rules-body p { margin: 0; }
+
+/* --- Methodology -------------------------------------------------------- */
+
+.prose { max-width: 44rem; padding-top: 3.5rem; }
+.prose h1 { margin-bottom: 1.5rem; }
+.prose h2 { margin: 2.25rem 0 0.5rem; font-size: 1.15rem; }
+.prose p, .prose li { color: color-mix(in srgb, var(--text) 82%, var(--bg)); }
+.prose li { margin: 0.4rem 0; }
+.prose ul { padding-left: 1.2rem; }
+.prose li::marker { color: var(--faint); }
+.prose strong { color: var(--text); font-weight: 600; }
+.prose .notice { margin-top: 2.5rem; color: var(--muted); font-size: 0.875rem; }
+code {
+  padding: 0.1rem 0.35rem;
+  background: var(--subtle); border: 1px solid var(--border); border-radius: 6px;
+  font: 0.85em var(--mono);
+}
+.provenance code { font-size: 0.95em; }
 
 .sr-only {
   position: absolute; width: 1px; height: 1px; overflow: hidden;
   clip: rect(0 0 0 0); white-space: nowrap;
 }
 
+/* --- Points breakdown --------------------------------------------------- */
+
+/* Disclosure remains a native <details>; it lives in a full-width row beneath
+   its player because a <details> cannot wrap a <tr>. The player row drops its
+   bottom border so the pair closes with one line instead of two. */
+tr.has-ledger > td { border-bottom: none; padding-bottom: 0.15rem; }
+tr.ledger-row > td {
+  padding: 0 var(--cell-x) 0.65rem calc(var(--col-rank) + var(--col-move) + var(--cell-x));
+}
+tr.ledger-row summary {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  list-style: none; cursor: pointer;
+  color: var(--muted); font-size: 0.76rem;
+  padding: 0.1rem 0;
+}
+tr.ledger-row summary::-webkit-details-marker { display: none; }
+tr.ledger-row summary::before {
+  content: ""; width: 0.35rem; height: 0.35rem; flex: none;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg); transition: transform 0.15s ease;
+}
+tr.ledger-row details[open] > summary::before { transform: rotate(45deg); }
+tr.ledger-row summary:hover { color: var(--text); }
+
+/* Capped width so the ledger reads as a column on a wide screen, and a grid
+   rather than a nested table so it wraps instead of widening .race. */
+.ledger {
+  max-width: 32rem; margin: 0.6rem 0 0.25rem; padding: 0.4rem 0.9rem 0.75rem;
+  background: var(--subtle); border: 1px solid var(--border); border-radius: 10px;
+  font-size: 0.8rem;
+}
+.lg-title {
+  margin: 0.6rem 0 0.2rem;
+  color: var(--muted); font-size: 0.66rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.lg-list { list-style: none; margin: 0; padding: 0; }
+.lg-list li, .lg-total {
+  display: grid; grid-template-columns: 1fr 2.9rem 4rem;
+  gap: 0.4rem; margin: 0; padding: 0.12rem 0;
+}
+.lg-list .event { overflow-wrap: anywhere; }
+.lg-list .rd, .lg-total .rd { text-align: right; color: var(--muted); }
+.lg-list .pt, .lg-total .pt { text-align: right; font-variant-numeric: tabular-nums; }
+/* The source italicises a next-best result standing in for a mandatory
+   Masters 1000; keeping that convention means the footnote explains a mark the
+   reader can already see. */
+.lg-list li.sub .event { font-style: italic; }
+.lg-list .qual { color: var(--muted); font-size: 0.72rem; font-style: normal; }
+.lg-list li.absent, .lg-list li.pending { color: var(--faint); }
+.lg-list li.absent .rd, .lg-list li.pending .rd { color: inherit; }
+.lg-total {
+  margin-top: 0.5rem; padding-top: 0.45rem;
+  border-top: 1px solid var(--border-strong);
+  font-weight: 600;
+}
+.lg-note {
+  color: var(--muted); font-size: 0.72rem;
+  margin: 0.6rem 0 0; max-width: 32rem;
+}
+/* Event links stay the body colour: fifteen accent links per player would shout
+   louder than the standings they annotate. */
+.ledger a { color: inherit; text-decoration-color: transparent; }
+.ledger a:hover { text-decoration-color: currentColor; }
+
+/* Player names link to their ATP profile. `color: inherit` matters: the row
+   state (withdrawn) has to survive the link, so the anchor must not take a
+   link colour of its own. */
+td.player a { color: inherit; text-decoration-color: transparent; }
+td.player a:hover { text-decoration-color: currentColor; }
+
+/* --- Narrow screens ----------------------------------------------------- */
+
 @media (max-width: 700px) {
-  main { padding: 0 0.5rem 2rem; }
+  :root { --gutter: 1rem; }
+  .hero { padding: 2.25rem 0 1.5rem; }
+  .summary { padding: 1.1rem 1.1rem 1.2rem; }
+  .seats { grid-template-columns: 1fr; }
   table.race { font-size: 0.85rem; }
   /* Status badges stack rather than widening the row. */
-  td.status .badge { display: block; margin: 0.1rem 0; }
+  td.status .badge { display: block; width: fit-content; margin: 0.2rem 0; }
+  td.status .badge + .badge { margin-left: 0; }
 }
 
 /* Phone widths. The table keeps every column and its full labels, and scrolls
    inside .table-wrap when it needs to; tightening type and spacing just means
    less scrolling. The page itself must never scroll — see .table-wrap. */
 @media (max-width: 560px) {
-  .site-bar { gap: 0.5rem; padding-inline: 0.5rem; }
-  .theme-label { display: none; }
-  .theme-options button { padding-inline: 0.3rem; font-size: 0.68rem; }
-  table.race { font-size: 0.8rem; }
-  table.race th, table.race td { padding: 0.3rem 0.25rem; }
-  table.race th { letter-spacing: 0; }
+  .site-bar { gap: 0.5rem; }
+  .site-nav { gap: 0.75rem; }
+  .lede { font-size: 1rem; }
+  .race { --cell-x: 0.35rem; --col-rank: 1.9rem; --col-move: 1.6rem; }
+  table.race { font-size: 0.82rem; }
+  table.race th, table.race td { padding-block: 0.55rem; }
+  table.race th { letter-spacing: 0.02em; }
   td.player { overflow-wrap: normal; }
-  .cc { display: block; line-height: 1.1; }
-  tr.cutline td { letter-spacing: 0.05em; font-size: 0.68rem; }
-  h1 { font-size: 1.15rem; }
-  .seats { gap: 0.35rem; }
+  .cc { display: block; margin: 0.2rem 0 0; }
+  td.margin { font-size: 0.8rem; }
+  td.status .badge { padding-inline: 0.4rem; font-size: 0.68rem; }
+  tr.cutline span { letter-spacing: 0.05em; font-size: 0.62rem; }
+  .seats { gap: 1rem; }
+  .seven li { font-size: 0.82rem; }
+  .ledger { padding-inline: 0.7rem; }
 }
 
-/* Per-player points breakdown. Disclosure remains a native <details>; it lives
-   in a full-width row beneath its player because a <details> cannot wrap a
-   <tr>. The player row drops its bottom border so the pair closes with one line
-   instead of two. */
-tr.has-ledger > td { border-bottom: none; }
-tr.ledger-row > td { padding: 0 0.5rem 0.4rem; }
-tr.ledger-row summary {
-  list-style: none;
-  cursor: pointer;
-  color: var(--muted);
-  font-size: 0.76rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 0.1rem 0;
+@media (max-width: 380px) {
+  /* The footer carries the same link, and the header has no room to spare. */
+  .site-nav > a { display: none; }
 }
-tr.ledger-row summary::-webkit-details-marker { display: none; }
-tr.ledger-row summary::before { content: "\25B8"; color: var(--focus); margin-right: 0.35rem; }
-tr.ledger-row details[open] > summary::before { content: "\25BE"; }
-tr.ledger-row summary:hover { color: var(--link); }
 
-/* Capped width so the ledger reads as a column on a wide screen, and a grid
-   rather than a nested table so it wraps instead of widening .race. */
-.ledger { font-size: 0.82rem; padding: 0.15rem 0 0.5rem 1.1rem; max-width: 32rem; }
-.lg-title {
-  margin: 0.5rem 0 0.15rem;
-  color: var(--focus); font-size: 0.7rem;
-  text-transform: uppercase; letter-spacing: 0.08em;
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
 }
-.lg-list { list-style: none; margin: 0; padding: 0; }
-.lg-list li, .lg-total {
-  display: grid; grid-template-columns: 1fr 2.9rem 4rem;
-  gap: 0.4rem; margin: 0;
-}
-.lg-list .event { overflow-wrap: anywhere; }
-.lg-list .rd, .lg-total .rd { text-align: right; }
-.lg-list .pt, .lg-total .pt { text-align: right; font-variant-numeric: tabular-nums; }
-/* The source italicises a next-best result standing in for a mandatory
-   Masters 1000; keeping that convention means the footnote explains a mark the
-   reader can already see. */
-.lg-list li.sub .event { font-style: italic; }
-.lg-list .qual { color: var(--muted); font-size: 0.74rem; font-style: normal; }
-.lg-list li.absent, .lg-list li.pending { color: var(--muted); }
-.lg-total {
-  margin-top: 0.4rem; padding-top: 0.15rem;
-  border-top: 1px solid var(--border);
-  color: var(--strong); font-weight: 700;
-}
-.lg-note {
-  color: var(--muted); font-size: 0.74rem;
-  margin: 0.6rem 0 0; max-width: 32rem;
-}
-/* Event links stay the body colour: fifteen accent links per player would shout
-   louder than the standings they annotate. */
-.ledger a { color: inherit; text-underline-offset: 2px; }
-.ledger a:hover, .ledger a:focus { background: var(--link); color: var(--accent-ink); }
-
-/* Player names link to their ATP profile. `color: inherit` matters: the row
-   state (selected, slam-pick, alternate) has to survive the link, so the
-   anchor must not take the global link colour. */
-td.player a { color: inherit; text-underline-offset: 2px; }
-td.player a:hover, td.player a:focus { background: var(--link); color: var(--accent-ink); }
